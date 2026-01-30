@@ -1,0 +1,364 @@
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Role {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique @db.NVarChar(50)
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  externalAuthId  String    @unique @map("external_auth_id") @db.NVarChar(255)
+  firstName       String    @map("first_name") @db.NVarChar(100)
+  lastName        String    @map("last_name") @db.NVarChar(100)
+  email           String    @unique @db.NVarChar(255)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime2(0)
+  lastLoginAt     DateTime? @map("last_login_at") @db.DateTime2(0)
+
+  userRoles              UserRole[]
+  approvedCycles         AssessmentCycle[]      @relation("CycleApprover")
+  evaluatorAssignmentsAs EvaluatorAssignment[]  @relation("Evaluator")
+  assignedByAssignments  EvaluatorAssignment[]  @relation("AssignedBy")
+  assessments            Assessment[]
+  assessmentScores       AssessmentScore[]
+  assessmentNotes        AssessmentNote[]
+  classNotes             ClassNote[]
+  audioRecordings        AudioRecording[]
+  auditLogs              AssessmentAuditLog[]
+  scheduledDates         SchoolAssessmentDate[]
+  studentModifications   Student[]              @relation("StudentModifier")
+
+  @@index([isActive])
+  @@map("users")
+}
+
+model UserRole {
+  userId Int  @map("user_id")
+  roleId Int  @map("role_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model AssessmentCycle {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.NVarChar(100)
+  startsOn       DateTime  @map("starts_on") @db.Date
+  endsOn         DateTime  @map("ends_on") @db.Date
+  isActive       Boolean   @default(false) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime2(0)
+  dataApprovedAt DateTime? @map("data_approved_at") @db.DateTime2(0)
+  dataApprovedBy Int?      @map("data_approved_by")
+  retentionDays  Int?      @map("retention_days")
+
+  approver              User?                  @relation("CycleApprover", fields: [dataApprovedBy], references: [id])
+  rounds                AssessmentRound[]
+  classes               Class[]
+  students              Student[]
+  evaluatorAssignments  EvaluatorAssignment[]
+  schoolAssessmentDates SchoolAssessmentDate[]
+  assessments           Assessment[]
+
+  @@index([isActive])
+  @@map("assessment_cycles")
+}
+
+model AssessmentRound {
+  id          Int      @id @default(autoincrement())
+  cycleId     Int      @map("cycle_id")
+  roundNumber Int      @map("round_number") @db.TinyInt
+  name        String   @db.NVarChar(50)
+  startsOn    DateTime @map("starts_on") @db.Date
+  endsOn      DateTime @map("ends_on") @db.Date
+  isActive    Boolean  @default(false) @map("is_active")
+
+  cycle                 AssessmentCycle        @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  assessments           Assessment[]
+  schoolAssessmentDates SchoolAssessmentDate[]
+
+  @@unique([cycleId, roundNumber])
+  @@map("assessment_rounds")
+}
+
+model Program {
+  id      Int     @id @default(autoincrement())
+  name    String  @unique @db.NVarChar(100)
+  classes Class[]
+
+  @@map("programs")
+}
+
+model School {
+  id                    Int                    @id @default(autoincrement())
+  schoolCode            String                 @unique @map("school_code") @db.NVarChar(50)
+  name                  String                 @db.NVarChar(255)
+  district              String?                @db.NVarChar(100)
+  schoolType            String?                @map("school_type") @db.NVarChar(50)
+  contactName           String?                @map("contact_name") @db.NVarChar(255)
+  contactEmail          String?                @map("contact_email") @db.NVarChar(255)
+  contactPhone          String?                @map("contact_phone") @db.NVarChar(50)
+
+  classes               Class[]
+  students              Student[]
+  schoolAssessmentDates SchoolAssessmentDate[]
+
+  @@map("schools")
+}
+
+model Class {
+  id         Int      @id @default(autoincrement())
+  cycleId    Int      @map("cycle_id")
+  schoolId   Int      @map("school_id")
+  programId  Int?     @map("program_id")
+  classCode  String   @map("class_code") @db.NVarChar(50)
+  grade      Int?
+  teacher    String?  @db.NVarChar(255)
+  isActive   Boolean  @default(true) @map("is_active")
+  isIncluded Boolean  @default(true) @map("is_included")
+  roomNumber String?  @map("room_number") @db.NVarChar(50)
+
+  cycle                AssessmentCycle       @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  program              Program?              @relation(fields: [programId], references: [id])
+  classStudents        ClassStudent[]
+  evaluatorAssignments EvaluatorAssignment[]
+  classNotes           ClassNote[]
+
+  @@index([cycleId, schoolId])
+  @@index([cycleId, isIncluded])
+  @@map("classes")
+}
+
+model Student {
+  id              Int       @id @default(autoincrement())
+  cycleId         Int       @map("cycle_id")
+  schoolId        Int       @map("school_id")
+  studentNumber   String    @map("student_number") @db.NVarChar(50)
+  aspenStudentId  String?   @map("aspen_student_id") @db.NVarChar(50)
+  firstName       String    @map("first_name") @db.NVarChar(100)
+  lastName        String    @map("last_name") @db.NVarChar(100)
+  grade           Int?
+  isActive        Boolean   @default(true) @map("is_active")
+  lastModifiedBy  Int?      @map("last_modified_by")
+  lastModifiedAt  DateTime? @map("last_modified_at") @db.DateTime2(0)
+
+  cycle         AssessmentCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  school        School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  modifier      User?           @relation("StudentModifier", fields: [lastModifiedBy], references: [id])
+  classStudents ClassStudent[]
+  assessments   Assessment[]
+
+  @@unique([cycleId, studentNumber])
+  @@map("students")
+}
+
+model ClassStudent {
+  classId   Int @map("class_id")
+  studentId Int @map("student_id")
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([classId, studentId])
+  @@map("class_students")
+}
+
+model EvaluatorAssignment {
+  id          Int      @id @default(autoincrement())
+  cycleId     Int      @map("cycle_id")
+  classId     Int      @map("class_id")
+  evaluatorId Int      @map("evaluator_id")
+  assignedBy  Int      @map("assigned_by")
+  assignedAt  DateTime @default(now()) @map("assigned_at") @db.DateTime2(0)
+
+  cycle     AssessmentCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  class     Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  evaluator User            @relation("Evaluator", fields: [evaluatorId], references: [id])
+  assigner  User            @relation("AssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([cycleId, classId, evaluatorId])
+  @@map("evaluator_assignments")
+}
+
+model SchoolAssessmentDate {
+  id             Int      @id @default(autoincrement())
+  cycleId        Int      @map("cycle_id")
+  roundId        Int?     @map("round_id")
+  schoolId       Int      @map("school_id")
+  assessmentDate DateTime @map("assessment_date") @db.Date
+  createdBy      Int      @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime2(0)
+
+  cycle   AssessmentCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  round   AssessmentRound? @relation(fields: [roundId], references: [id])
+  school  School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  creator User             @relation(fields: [createdBy], references: [id])
+
+  @@unique([cycleId, roundId, schoolId, assessmentDate])
+  @@map("school_assessment_dates")
+}
+
+model Assessment {
+  id             Int       @id @default(autoincrement())
+  cycleId        Int       @map("cycle_id")
+  roundId        Int?      @map("round_id")
+  studentId      Int       @map("student_id")
+  evaluatorId    Int?      @map("evaluator_id")
+  status         String    @default("NOT_STARTED") @db.NVarChar(20)
+  needsReview    Boolean   @default(false) @map("needs_review")
+  startedAt      DateTime? @map("started_at") @db.DateTime2(0)
+  completedAt    DateTime? @map("completed_at") @db.DateTime2(0)
+  lastModifiedAt DateTime  @default(now()) @map("last_modified_at") @db.DateTime2(0)
+  submittedAt    DateTime? @map("submitted_at") @db.DateTime2(0)
+
+  cycle           AssessmentCycle            @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  round           AssessmentRound?           @relation(fields: [roundId], references: [id])
+  student         Student                    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  evaluator       User?                      @relation(fields: [evaluatorId], references: [id])
+  score           AssessmentScore?
+  notes           AssessmentNote[]
+  audioRecordings AudioRecording[]
+  auditLogs       AssessmentAuditLog[]
+  criteriaResults AssessmentCriteriaResult[]
+
+  @@unique([cycleId, studentId])
+  @@index([cycleId, status])
+  @@index([evaluatorId, status])
+  @@index([needsReview])
+  @@map("assessments")
+}
+
+model OpiLevel {
+  id          Int    @id @map("level")
+  description String @db.NVarChar(255)
+
+  criteria AssessmentCriteria[]
+  scores   AssessmentScore[]
+
+  @@map("opi_levels")
+}
+
+model AssessmentScore {
+  assessmentId Int      @id @map("assessment_id")
+  opiLevelId   Int      @map("opi_level_id")
+  notes        String?  @db.NVarChar(Max)
+  updatedBy    Int      @map("updated_by")
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.DateTime2(0)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  opiLevel   OpiLevel   @relation(fields: [opiLevelId], references: [id])
+  updater    User       @relation(fields: [updatedBy], references: [id])
+
+  @@map("assessment_scores")
+}
+
+model AssessmentCriteria {
+  id          Int     @id @default(autoincrement())
+  opiLevelId  Int     @map("opi_level_id")
+  description String  @db.NVarChar(255)
+  isActive    Boolean @default(true) @map("is_active")
+
+  opiLevel OpiLevel                   @relation(fields: [opiLevelId], references: [id])
+  results  AssessmentCriteriaResult[]
+
+  @@map("assessment_criteria")
+}
+
+model AssessmentCriteriaResult {
+  assessmentId Int     @map("assessment_id")
+  criteriaId   Int     @map("criteria_id")
+  met          Boolean
+
+  assessment Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  criteria   AssessmentCriteria @relation(fields: [criteriaId], references: [id])
+
+  @@id([assessmentId, criteriaId])
+  @@map("assessment_criteria_results")
+}
+
+model AssessmentNote {
+  id           Int      @id @default(autoincrement())
+  assessmentId Int      @map("assessment_id")
+  note         String   @db.NVarChar(Max)
+  createdBy    Int      @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime2(0)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  creator    User       @relation(fields: [createdBy], references: [id])
+
+  @@map("assessment_notes")
+}
+
+model ClassNote {
+  id        Int      @id @default(autoincrement())
+  classId   Int      @map("class_id")
+  note      String   @db.NVarChar(Max)
+  updatedBy Int      @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime2(0)
+
+  class  Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [updatedBy], references: [id])
+
+  @@unique([classId, updatedBy])
+  @@map("class_notes")
+}
+
+model AudioRecording {
+  id              Int      @id @default(autoincrement())
+  assessmentId    Int      @map("assessment_id")
+  storageProvider String   @map("storage_provider") @db.NVarChar(50)
+  storageKey      String   @map("storage_key") @db.NVarChar(512)
+  fileName        String   @map("file_name") @db.NVarChar(255)
+  mimeType        String   @map("mime_type") @db.NVarChar(100)
+  fileSizeBytes   BigInt   @map("file_size_bytes")
+  durationSeconds Int?     @map("duration_seconds")
+  uploadedBy      Int      @map("uploaded_by")
+  uploadedAt      DateTime @default(now()) @map("uploaded_at") @db.DateTime2(0)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  uploader   User       @relation(fields: [uploadedBy], references: [id])
+
+  @@index([assessmentId, uploadedAt])
+  @@map("audio_recordings")
+}
+
+model AssessmentAuditLog {
+  id           Int      @id @default(autoincrement())
+  assessmentId Int      @map("assessment_id")
+  action       String   @db.NVarChar(50)
+  fieldName    String?  @map("field_name") @db.NVarChar(100)
+  oldValue     String?  @map("old_value") @db.NVarChar(255)
+  newValue     String?  @map("new_value") @db.NVarChar(255)
+  changedBy    Int      @map("changed_by")
+  changedAt    DateTime @default(now()) @map("changed_at") @db.DateTime2(0)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  changer    User       @relation(fields: [changedBy], references: [id])
+
+  @@map("assessment_audit_log")
+}
+
+model IngestionLog {
+  id              Int      @id @default(autoincrement())
+  entityType      String   @map("entity_type") @db.NVarChar(50)
+  recordsTotal    Int      @map("records_total")
+  recordsUpserted Int      @map("records_upserted")
+  recordsFailed   Int      @map("records_failed")
+  errors          String?  @db.NVarChar(Max)
+  idempotencyKey  String?  @map("idempotency_key") @db.NVarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime2(0)
+
+  @@map("ingestion_logs")
+}

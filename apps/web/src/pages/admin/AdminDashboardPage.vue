@@ -1,5 +1,5 @@
 <template>
-  <AppShell :user="mockUser">
+  <AppShell :user="currentUser">
     <!-- Page Title -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-neutral-900 mb-2">Administrator Dashboard</h1>
@@ -96,18 +96,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';
 
-// Mock user data
-const mockUser = ref({
-  firstName: 'Admin',
-  lastName: 'User',
-  email: 'admin@yukon.ca',
-});
+const authStore = useAuthStore();
+
+// Use authenticated user from store
+const currentUser = computed(() => authStore.user ? {
+  firstName: authStore.user.firstName,
+  lastName: authStore.user.lastName,
+  email: authStore.user.email,
+} : null);
 
 // Mock schools data
 const schools = ref([

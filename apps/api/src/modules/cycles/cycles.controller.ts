@@ -4,7 +4,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateCycleDto } from './dto/create-cycle.dto';
 
-@Controller('api/v1')
+@Controller()
 export class CyclesController {
   constructor(private readonly cyclesService: CyclesService) {}
 

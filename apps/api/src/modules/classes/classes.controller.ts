@@ -3,7 +3,7 @@ import { ClassesService } from './classes.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UpdateClassDto } from './dto/update-class.dto';
 
-@Controller('api/v1')
+@Controller()
 export class ClassesController {
   constructor(private readonly classesService: ClassesService) {}
 

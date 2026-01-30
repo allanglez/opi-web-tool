@@ -8,7 +8,7 @@ import { BulkIngestClassesDto } from './dto/ingest-class.dto';
 import { BulkIngestStudentsDto } from './dto/ingest-student.dto';
 import { BulkIngestClassStudentsDto } from './dto/ingest-class-student.dto';
 
-@Controller('api/v1/ingest')
+@Controller('ingest')
 export class IngestionController {
   constructor(private readonly ingestionService: IngestionService) {}
 

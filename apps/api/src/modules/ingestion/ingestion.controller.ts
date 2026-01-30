@@ -1,0 +1,55 @@
+import { Controller, Post, Get, Body, Query } from '@nestjs/common';
+import { IngestionService } from './ingestion.service';
+import { Scopes } from '../../common/decorators/scopes.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { BulkIngestSchoolsDto } from './dto/ingest-school.dto';
+import { BulkIngestProgramsDto } from './dto/ingest-program.dto';
+import { BulkIngestClassesDto } from './dto/ingest-class.dto';
+import { BulkIngestStudentsDto } from './dto/ingest-student.dto';
+import { BulkIngestClassStudentsDto } from './dto/ingest-class-student.dto';
+
+@Controller('api/v1/ingest')
+export class IngestionController {
+  constructor(private readonly ingestionService: IngestionService) {}
+
+  @Post('schools')
+  @Scopes('ingest:schools')
+  @Roles('ADMIN')
+  async ingestSchools(@Body() dto: BulkIngestSchoolsDto) {
+    return this.ingestionService.ingestSchools(dto);
+  }
+
+  @Post('programs')
+  @Scopes('ingest:schools')
+  @Roles('ADMIN')
+  async ingestPrograms(@Body() dto: BulkIngestProgramsDto) {
+    return this.ingestionService.ingestPrograms(dto);
+  }
+
+  @Post('classes')
+  @Scopes('ingest:classes')
+  @Roles('ADMIN')
+  async ingestClasses(@Body() dto: BulkIngestClassesDto) {
+    return this.ingestionService.ingestClasses(dto);
+  }
+
+  @Post('students')
+  @Scopes('ingest:students')
+  @Roles('ADMIN')
+  async ingestStudents(@Body() dto: BulkIngestStudentsDto) {
+    return this.ingestionService.ingestStudents(dto);
+  }
+
+  @Post('class-students')
+  @Scopes('ingest:enrollments')
+  @Roles('ADMIN')
+  async ingestClassStudents(@Body() dto: BulkIngestClassStudentsDto) {
+    return this.ingestionService.ingestClassStudents(dto);
+  }
+
+  @Get('logs')
+  @Roles('ADMIN')
+  async getIngestionLogs(@Query('limit') limit?: string) {
+    return this.ingestionService.getIngestionLogs(limit ? parseInt(limit, 10) : 50);
+  }
+}

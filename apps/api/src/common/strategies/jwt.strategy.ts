@@ -29,6 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       externalAuthId: payload.sub,
       email: payload.email,
+      permissions: payload.permissions || payload.scope?.split(' ') || [],
     };
   }
 }

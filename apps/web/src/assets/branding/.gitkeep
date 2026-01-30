@@ -1,0 +1,8 @@
+# Branding Assets
+
+Place the following files in this directory:
+- yukon-logo.svg or yukon-logo.png
+- yukon-waves-header.svg or yukon-waves-header.png
+- yukon-waves-footer.svg or yukon-waves-footer.png
+
+These will be referenced in the AppHeader and AppFooter components.

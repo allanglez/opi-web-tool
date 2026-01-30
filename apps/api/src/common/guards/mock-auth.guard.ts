@@ -1,12 +1,10 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class MockAuthGuard implements CanActivate {
   constructor(
-    private configService: ConfigService,
     private reflector: Reflector,
   ) {}
 

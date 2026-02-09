@@ -8,7 +8,8 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      beforeEnter: (to, from, next) => {
+      component: { render: () => null }, // Empty component
+      beforeEnter: (_to, _from, next) => {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated) {
           next({ name: 'login' });

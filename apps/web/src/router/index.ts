@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { authGuard } from './guards';
+import { useAuthStore } from '../stores/auth';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,7 +8,20 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      redirect: '/admin/dashboard',
+      beforeEnter: (to, from, next) => {
+        const authStore = useAuthStore();
+        if (!authStore.isAuthenticated) {
+          next({ name: 'login' });
+        } else if (authStore.isAdmin) {
+          next({ name: 'admin-dashboard' });
+        } else if (authStore.isCoordinator) {
+          next({ name: 'admin-dashboard' });
+        } else if (authStore.isEvaluator) {
+          next({ name: 'evaluator-dashboard' });
+        } else {
+          next({ name: 'forbidden' });
+        }
+      },
     },
     {
       path: '/login',
@@ -56,6 +70,32 @@ const router = createRouter({
       name: 'admin-cycle-classes',
       component: () => import('../pages/admin/cycle/ClassInclusionPage.vue'),
       meta: { roles: ['ADMIN'] },
+    },
+    // Coordinator routes
+    {
+      path: '/coordinator/assignments',
+      name: 'coordinator-assignments',
+      component: () => import('../pages/coordinator/AssignmentsPage.vue'),
+      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+    },
+    // Evaluator routes
+    {
+      path: '/evaluator/dashboard',
+      name: 'evaluator-dashboard',
+      component: () => import('../pages/evaluator/EvaluatorDashboardPage.vue'),
+      meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/evaluator/classes/:classId',
+      name: 'evaluator-class-students',
+      component: () => import('../pages/evaluator/ClassStudentsPage.vue'),
+      meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/evaluator/assessments/:assessmentId',
+      name: 'evaluator-assessment-form',
+      component: () => import('../pages/evaluator/AssessmentFormPage.vue'),
+      meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
     },
   ],
 });

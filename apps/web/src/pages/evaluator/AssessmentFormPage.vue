@@ -110,8 +110,16 @@
               {{ isSaving ? 'Saving...' : 'Save Draft' }}
             </button>
             <button
+              type="button"
+              :disabled="isMarkingAbsent"
+              class="px-6 py-2 text-neutral-700 bg-orange-100 rounded-md hover:bg-orange-200 disabled:opacity-50"
+              @click="markAbsent"
+            >
+              {{ isMarkingAbsent ? 'Marking...' : 'Mark Absent' }}
+            </button>
+            <button
               type="submit"
-              :disabled="!form.opiLevelId || isCompleting"
+              :disabled="!canComplete"
               class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {{ isCompleting ? 'Completing...' : 'Complete Assessment' }}
@@ -179,6 +187,7 @@ const isLoading = ref(true);
 const error = ref<string | null>(null);
 const isSaving = ref(false);
 const isCompleting = ref(false);
+const isMarkingAbsent = ref(false);
 
 interface Assessment {
   id: number;
@@ -231,9 +240,15 @@ const statusClass = computed(() => {
       return 'bg-green-100 text-green-800';
     case 'IN_PROGRESS':
       return 'bg-yellow-100 text-yellow-800';
+    case 'ABSENT':
+      return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-neutral-100 text-neutral-600';
   }
+});
+
+const canComplete = computed(() => {
+  return form.value.opiLevelId !== null && !isCompleting.value && !isSaving.value && !isMarkingAbsent.value;
 });
 
 function formatDate(dateStr?: string): string {
@@ -300,6 +315,20 @@ async function saveDraft() {
 
     if (!res.ok) {
       const err = await res.json();
+      
+      // Handle specific error cases
+      if (err.error === 'ASSESSMENT_LOCKED') {
+        error.value = `This assessment is currently locked by another evaluator: ${err.details?.evaluatorId || 'Unknown'}. Please try again later.`;
+        // Refresh assessment data to get latest lock status
+        await fetchAssessment();
+        return;
+      }
+      
+      if (err.error === 'NOT_ASSIGNED_TO_CLASS') {
+        error.value = 'You are not assigned to this class. Please contact your coordinator.';
+        return;
+      }
+      
       throw new Error(err.message || 'Failed to save draft');
     }
 
@@ -308,6 +337,55 @@ async function saveDraft() {
     alert(e instanceof Error ? e.message : 'Failed to save draft');
   } finally {
     isSaving.value = false;
+  }
+}
+
+async function markAbsent() {
+  if (!assessment.value) return;
+
+  if (!confirm('Are you sure you want to mark this student as absent? This action cannot be undone.')) {
+    return;
+  }
+
+  isMarkingAbsent.value = true;
+  try {
+    const token = authStore.token;
+    const res = await fetch(`${API_BASE}/assessments/${assessment.value.id}/mark-absent`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`, 
+        'Content-Type': 'application/json' 
+      },
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      
+      // Handle specific error cases
+      if (err.error === 'ASSESSMENT_LOCKED') {
+        error.value = `This assessment is currently locked by another evaluator. Please try again later.`;
+        await fetchAssessment();
+        return;
+      }
+      
+      if (err.error === 'NOT_ASSIGNED') {
+        error.value = 'You are not assigned to this assessment. Please contact your coordinator.';
+        return;
+      }
+      
+      throw new Error(err.message || 'Failed to mark absent');
+    }
+
+    assessment.value = await res.json();
+    
+    // Show success and redirect after brief delay
+    setTimeout(() => {
+      router.push('/evaluator/dashboard');
+    }, 1500);
+  } catch (e) {
+    alert(e instanceof Error ? e.message : 'Failed to mark absent');
+  } finally {
+    isMarkingAbsent.value = false;
   }
 }
 
@@ -331,6 +409,24 @@ async function handleSubmit() {
 
     if (!res.ok) {
       const err = await res.json();
+      
+      // Handle specific error cases
+      if (err.error === 'ASSESSMENT_LOCKED') {
+        error.value = `This assessment is currently locked by another evaluator. Please try again later.`;
+        await fetchAssessment();
+        return;
+      }
+      
+      if (err.error === 'NOT_ASSIGNED') {
+        error.value = 'You are not assigned to this assessment. Please contact your coordinator.';
+        return;
+      }
+      
+      if (err.error === 'VALIDATION_ERROR') {
+        error.value = err.message || 'Validation error occurred.';
+        return;
+      }
+      
       throw new Error(err.message || 'Failed to complete assessment');
     }
 

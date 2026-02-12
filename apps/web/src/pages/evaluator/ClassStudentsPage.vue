@@ -40,6 +40,7 @@
           <StatCard :value="completedCount" label="Completed" variant="green" />
           <StatCard :value="inProgressCount" label="In Progress" variant="yellow" />
           <StatCard :value="notStartedCount" label="Not Started" variant="red" />
+          <StatCard :value="absentCount" label="Absent" variant="default" />
         </div>
       </section>
 
@@ -188,6 +189,9 @@ const inProgressCount = computed(() =>
 const notStartedCount = computed(() => 
   students.value.filter(s => s.assessment.status === 'NOT_STARTED').length
 );
+const absentCount = computed(() => 
+  students.value.filter(s => s.assessment.status === 'ABSENT').length
+);
 
 function getStatusClass(student: StudentWithAssessment): string {
   switch (student.assessment.status) {
@@ -195,6 +199,8 @@ function getStatusClass(student: StudentWithAssessment): string {
       return 'bg-green-100 text-green-800';
     case 'IN_PROGRESS':
       return 'bg-yellow-100 text-yellow-800';
+    case 'ABSENT':
+      return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-neutral-100 text-neutral-600';
   }
@@ -285,7 +291,32 @@ async function startAssessment(student: StudentWithAssessment) {
 }
 
 function startPolling() {
-  pollingInterval = setInterval(fetchStudents, 10000);
+  // Clear any existing interval
+  stopPolling();
+  
+  // Poll every 10 seconds but with exponential backoff on errors
+  let backoffMs = 10000;
+  let consecutiveErrors = 0;
+  
+  pollingInterval = setInterval(async () => {
+    try {
+      await fetchStudents();
+      consecutiveErrors = 0; // Reset on success
+      backoffMs = 10000; // Reset to normal interval
+    } catch (error) {
+      consecutiveErrors++;
+      console.warn('Polling error:', error);
+      
+      // Exponential backoff: 10s, 20s, 40s, max 60s
+      backoffMs = Math.min(10000 * Math.pow(2, consecutiveErrors - 1), 60000);
+      
+      // If too many errors, stop polling
+      if (consecutiveErrors >= 5) {
+        console.error('Too many polling errors, stopping');
+        stopPolling();
+      }
+    }
+  }, backoffMs);
 }
 
 function stopPolling() {

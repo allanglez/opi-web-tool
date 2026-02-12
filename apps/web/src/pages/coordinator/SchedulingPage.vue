@@ -173,6 +173,18 @@ interface CoordinatorSchool {
 interface ScheduledDate {
   id: number;
   assessmentDate: string;
+  roundId: number | null;
+  createdAt: string;
+}
+
+interface BulkScheduleResponse {
+  recordsInserted: number;
+  recordsSkipped: number;
+}
+
+interface ScheduledDate {
+  id: number;
+  assessmentDate: string;
   createdAt: string;
 }
 
@@ -198,17 +210,17 @@ const selectedSchoolId = ref<number | ''>('');
 const dates = ref<ScheduledDate[]>([]);
 const singleDate = ref('');
 const bulkDateInput = ref('');
-const bulkResult = ref<{ recordsInserted: number; recordsSkipped: number } | null>(null);
+const bulkResult = ref<BulkScheduleResponse | null>(null);
 
 const selectedSchoolMeta = computed(() =>
   schools.value.find((school) => school.id === selectedSchoolId.value),
 );
 
-function formatDate(value: string) {
+function formatDate(value: string): string {
   return new Date(value).toLocaleDateString();
 }
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string): string {
   return new Date(value).toLocaleString();
 }
 
@@ -293,7 +305,7 @@ async function addBulkDates() {
   isSavingBulk.value = true;
 
   try {
-    const response = await api.post(`/coordinator/schools/${selectedSchoolId.value}/dates/bulk`, {
+    const response = await api.post<BulkScheduleResponse>(`/coordinator/schools/${selectedSchoolId.value}/dates/bulk`, {
       assessmentDates,
     });
 

@@ -32,23 +32,56 @@ export class AssessmentsService {
     ) { }
 
     /**
-     * Start an assessment - locks the student to the evaluator.
+     * Start an assessment - locks student to evaluator.
      * Uses SQL Server row-level locking (UPDLOCK, ROWLOCK) for concurrency safety.
+     * Enforces ownership - evaluators can only start assessments for assigned classes.
      */
     async startAssessment(dto: StartAssessmentDto, evaluatorId: number) {
         // Check cycle is approved
         const cycle = await this.cyclesService.checkCycleApproval();
         if (cycle.id !== dto.cycleId) {
-            throw new BadRequestException('Assessment must be for the active cycle');
+            throw new BadRequestException('Assessment must be for active cycle');
         }
 
-        // Check student exists
+        // Check student exists and get class info
         const student = await this.prisma.student.findUnique({
             where: { id: dto.studentId },
+            include: {
+                classStudents: {
+                    include: {
+                        class: true,
+                    },
+                },
+            },
         });
 
         if (!student || student.cycleId !== dto.cycleId) {
             throw new NotFoundException('Student not found in this cycle');
+        }
+
+        // Get the student's class
+        const classStudent = student.classStudents[0];
+        if (!classStudent) {
+            throw new BadRequestException('Student is not enrolled in any class');
+        }
+
+        const studentClass = classStudent.class;
+
+        // Check if evaluator is assigned to this class
+        const assignment = await this.prisma.evaluatorAssignment.findFirst({
+            where: {
+                evaluatorId,
+                classId: studentClass.id,
+                cycleId: dto.cycleId,
+            },
+        });
+
+        if (!assignment) {
+            throw new ForbiddenException({
+                statusCode: 403,
+                message: 'You are not assigned to this class',
+                error: 'NOT_ASSIGNED_TO_CLASS',
+            });
         }
 
         // Use interactive transaction with row-level locking
@@ -470,6 +503,71 @@ export class AssessmentsService {
         );
 
         return reopened;
+    }
+
+    /**
+     * Mark student as absent.
+     */
+    async markAbsent(id: number, userId: number) {
+        const assessment = await this.prisma.assessment.findUnique({
+            where: { id },
+        });
+
+        if (!assessment) {
+            throw new NotFoundException('Assessment not found');
+        }
+
+        if (assessment.evaluatorId !== userId) {
+            throw new ForbiddenException({
+                statusCode: 403,
+                message: 'You are not assigned evaluator for this assessment',
+                error: 'NOT_ASSIGNED',
+            });
+        }
+
+        if (assessment.status === 'COMPLETED') {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Cannot mark a completed assessment as absent',
+                error: 'ASSESSMENT_COMPLETED',
+            });
+        }
+
+        // Mark as absent - create/update assessment with ABSENT status
+        const updated = await this.prisma.$transaction(async (tx) => {
+            return tx.assessment.update({
+                where: { id },
+                data: {
+                    status: 'ABSENT',
+                    evaluatorId: userId,
+                    startedAt: assessment.startedAt || new Date(),
+                    completedAt: new Date(),
+                    lastModifiedAt: new Date(),
+                },
+                include: {
+                    student: true,
+                    evaluator: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            });
+        });
+
+        // Audit log
+        await this.auditService.logAssessmentAction(
+            id,
+            'ASSESSMENT_MARK_ABSENT',
+            userId,
+            'status',
+            assessment.status,
+            'ABSENT',
+        );
+
+        return updated;
     }
 
     /**

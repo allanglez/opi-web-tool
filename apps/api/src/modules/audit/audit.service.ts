@@ -7,7 +7,8 @@ export type AuditAction =
     | 'ASSESSMENT_START'
     | 'ASSESSMENT_COMPLETE'
     | 'ASSESSMENT_REOPEN'
-    | 'ASSESSMENT_UPDATE';
+    | 'ASSESSMENT_UPDATE'
+    | 'ASSESSMENT_MARK_ABSENT';
 
 @Injectable()
 export class AuditService {

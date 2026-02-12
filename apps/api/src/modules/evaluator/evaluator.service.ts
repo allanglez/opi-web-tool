@@ -62,6 +62,7 @@ export class EvaluatorService {
                         notStarted: 0,
                         inProgress: 0,
                         completed: 0,
+                        absent: 0,
                         assignmentId: assignment.id,
                     };
                 }
@@ -85,12 +86,14 @@ export class EvaluatorService {
                 let notStarted = 0;
                 let inProgress = 0;
                 let completed = 0;
+                let absent = 0;
 
                 for (const studentId of studentIds) {
                     const status = assessmentMap.get(studentId) || 'NOT_STARTED';
                     if (status === 'NOT_STARTED') notStarted++;
                     else if (status === 'IN_PROGRESS') inProgress++;
                     else if (status === 'COMPLETED') completed++;
+                    else if (status === 'ABSENT') absent++;
                 }
 
                 return {
@@ -104,6 +107,7 @@ export class EvaluatorService {
                     notStarted,
                     inProgress,
                     completed,
+                    absent,
                     assignmentId: assignment.id,
                 };
             }),

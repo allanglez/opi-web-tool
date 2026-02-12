@@ -71,6 +71,15 @@ export class AssessmentsController {
         return this.assessmentsService.reopenAssessment(id, user.id);
     }
 
+    @Post(':id/mark-absent')
+    @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    async markAbsent(
+        @Param('id', ParseIntPipe) id: number,
+        @CurrentUser() user: { id: number },
+    ) {
+        return this.assessmentsService.markAbsent(id, user.id);
+    }
+
     @Get('opi-levels')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     async getOpiLevels() {

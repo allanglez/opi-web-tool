@@ -7,8 +7,8 @@
     <p class="text-neutral-600 text-center max-w-md">{{ message }}</p>
     <button 
       v-if="showRetry"
-      @click="$emit('retry')"
       class="mt-4 px-4 py-2 bg-yukon-teal text-white rounded hover:bg-yukon-navy transition-colors"
+      @click="$emit('retry')"
     >
       Try Again
     </button>

@@ -9,7 +9,7 @@ import { IngestionResultDto } from './dto/ingestion-result.dto';
 
 @Injectable()
 export class IngestionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async ingestSchools(dto: BulkIngestSchoolsDto): Promise<IngestionResultDto> {
     const startTime = Date.now();
@@ -88,13 +88,20 @@ export class IngestionService {
       const program = dto.programs[i];
       try {
         const existing = await this.prisma.program.findUnique({
-          where: { name: program.name },
+          where: { code: program.code },
         });
 
         await this.prisma.program.upsert({
-          where: { name: program.name },
-          create: { name: program.name },
-          update: { name: program.name },
+          where: { code: program.code },
+          create: {
+            name: program.name,
+            code: program.code,
+            opiType: program.opiType,
+          },
+          update: {
+            name: program.name,
+            opiType: program.opiType,
+          },
         });
 
         if (existing) {
@@ -160,6 +167,22 @@ export class IngestionService {
           programId = program.id;
         }
 
+        // Upsert Teacher if provided
+        let teacherRecordId: number | null = null;
+        if (classData.teacherId) {
+          const teacher = await this.prisma.teacher.upsert({
+            where: { teacherId: classData.teacherId },
+            create: {
+              teacherId: classData.teacherId,
+              name: classData.teacherName || classData.teacherId,
+            },
+            update: {
+              name: classData.teacherName || classData.teacherId,
+            },
+          });
+          teacherRecordId = teacher.id;
+        }
+
         const existing = await this.prisma.class.findFirst({
           where: {
             cycleId: classData.cycleId,
@@ -177,14 +200,18 @@ export class IngestionService {
             schoolId: school.id,
             programId,
             classCode: classData.classCode,
+            courseTitle: classData.courseTitle,
             grade: classData.grade,
-            teacher: classData.teacher,
+            teacherId: teacherRecordId,
+            semesterTerm: classData.semesterTerm,
             roomNumber: classData.roomNumber,
           },
           update: {
             programId,
+            courseTitle: classData.courseTitle,
             grade: classData.grade,
-            teacher: classData.teacher,
+            teacherId: teacherRecordId,
+            semesterTerm: classData.semesterTerm,
             roomNumber: classData.roomNumber,
           },
         });
@@ -263,6 +290,8 @@ export class IngestionService {
             aspenStudentId: student.aspenStudentId,
             firstName: student.firstName,
             lastName: student.lastName,
+            middleName: student.middleName,
+            pen: student.pen,
             grade: student.grade,
           },
           update: {
@@ -270,6 +299,8 @@ export class IngestionService {
             aspenStudentId: student.aspenStudentId,
             firstName: student.firstName,
             lastName: student.lastName,
+            middleName: student.middleName,
+            pen: student.pen,
             grade: student.grade,
             lastModifiedAt: new Date(),
           },

@@ -15,14 +15,14 @@ model Role {
 }
 
 model User {
-  id              Int       @id @default(autoincrement())
-  externalAuthId  String    @unique @map("external_auth_id") @db.NVarChar(255)
-  firstName       String    @map("first_name") @db.NVarChar(100)
-  lastName        String    @map("last_name") @db.NVarChar(100)
-  email           String    @unique @db.NVarChar(255)
-  isActive        Boolean   @default(true) @map("is_active")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime2
-  lastLoginAt     DateTime? @map("last_login_at") @db.DateTime2
+  id             Int       @id @default(autoincrement())
+  externalAuthId String    @unique @map("external_auth_id") @db.NVarChar(255)
+  firstName      String    @map("first_name") @db.NVarChar(100)
+  lastName       String    @map("last_name") @db.NVarChar(100)
+  email          String    @unique @db.NVarChar(255)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime2
+  lastLoginAt    DateTime? @map("last_login_at") @db.DateTime2
 
   userRoles              UserRole[]
   approvedCycles         AssessmentCycle[]      @relation("CycleApprover")
@@ -54,6 +54,7 @@ model UserRole {
 model AssessmentCycle {
   id             Int       @id @default(autoincrement())
   name           String    @db.NVarChar(100)
+  year           Int
   startsOn       DateTime  @map("starts_on") @db.Date
   endsOn         DateTime  @map("ends_on") @db.Date
   isActive       Boolean   @default(false) @map("is_active")
@@ -94,20 +95,22 @@ model AssessmentRound {
 model Program {
   id      Int     @id @default(autoincrement())
   name    String  @unique @db.NVarChar(100)
+  code    String  @unique @db.NVarChar(50)
+  opiType String? @map("opi_type") @db.NVarChar(100)
   classes Class[]
 
   @@map("programs")
 }
 
 model School {
-  id                    Int                    @id @default(autoincrement())
-  schoolCode            String                 @unique @map("school_code") @db.NVarChar(50)
-  name                  String                 @db.NVarChar(255)
-  district              String?                @db.NVarChar(100)
-  schoolType            String?                @map("school_type") @db.NVarChar(50)
-  contactName           String?                @map("contact_name") @db.NVarChar(255)
-  contactEmail          String?                @map("contact_email") @db.NVarChar(255)
-  contactPhone          String?                @map("contact_phone") @db.NVarChar(50)
+  id           Int     @id @default(autoincrement())
+  schoolCode   String  @unique @map("school_code") @db.NVarChar(50)
+  name         String  @db.NVarChar(255)
+  district     String? @db.NVarChar(100)
+  schoolType   String? @map("school_type") @db.NVarChar(50)
+  contactName  String? @map("contact_name") @db.NVarChar(255)
+  contactEmail String? @map("contact_email") @db.NVarChar(255)
+  contactPhone String? @map("contact_phone") @db.NVarChar(50)
 
   classes               Class[]
   students              Student[]
@@ -117,20 +120,23 @@ model School {
 }
 
 model Class {
-  id         Int      @id @default(autoincrement())
-  cycleId    Int      @map("cycle_id")
-  schoolId   Int      @map("school_id")
-  programId  Int?     @map("program_id")
-  classCode  String   @map("class_code") @db.NVarChar(50)
-  grade      Int?
-  teacher    String?  @db.NVarChar(255)
-  isActive   Boolean  @default(true) @map("is_active")
-  isIncluded Boolean  @default(true) @map("is_included")
-  roomNumber String?  @map("room_number") @db.NVarChar(50)
+  id           Int     @id @default(autoincrement())
+  cycleId      Int     @map("cycle_id")
+  schoolId     Int     @map("school_id")
+  programId    Int?    @map("program_id")
+  classCode    String  @map("class_code") @db.NVarChar(50)
+  courseTitle  String? @map("course_title") @db.NVarChar(255)
+  grade        Int?
+  teacherId    Int?    @map("teacher_id")
+  semesterTerm String? @map("semester_term") @db.NVarChar(10)
+  isActive     Boolean @default(true) @map("is_active")
+  isIncluded   Boolean @default(true) @map("is_included")
+  roomNumber   String? @map("room_number") @db.NVarChar(50)
 
   cycle                AssessmentCycle       @relation(fields: [cycleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   school               School                @relation(fields: [schoolId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   program              Program?              @relation(fields: [programId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teacher              Teacher?              @relation(fields: [teacherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   classStudents        ClassStudent[]
   evaluatorAssignments EvaluatorAssignment[]
   classNotes           ClassNote[]
@@ -141,17 +147,19 @@ model Class {
 }
 
 model Student {
-  id              Int       @id @default(autoincrement())
-  cycleId         Int       @map("cycle_id")
-  schoolId        Int       @map("school_id")
-  studentNumber   String    @map("student_number") @db.NVarChar(50)
-  aspenStudentId  String?   @map("aspen_student_id") @db.NVarChar(50)
-  firstName       String    @map("first_name") @db.NVarChar(100)
-  lastName        String    @map("last_name") @db.NVarChar(100)
-  grade           Int?
-  isActive        Boolean   @default(true) @map("is_active")
-  lastModifiedBy  Int?      @map("last_modified_by")
-  lastModifiedAt  DateTime? @map("last_modified_at") @db.DateTime2
+  id             Int       @id @default(autoincrement())
+  cycleId        Int       @map("cycle_id")
+  schoolId       Int       @map("school_id")
+  studentNumber  String    @map("student_number") @db.NVarChar(50)
+  aspenStudentId String?   @map("aspen_student_id") @db.NVarChar(50)
+  firstName      String    @map("first_name") @db.NVarChar(100)
+  lastName       String    @map("last_name") @db.NVarChar(100)
+  middleName     String?   @map("middle_name") @db.NVarChar(100)
+  pen            String?   @db.NVarChar(50)
+  grade          Int?
+  isActive       Boolean   @default(true) @map("is_active")
+  lastModifiedBy Int?      @map("last_modified_by")
+  lastModifiedAt DateTime? @map("last_modified_at") @db.DateTime2
 
   cycle         AssessmentCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   school        School          @relation(fields: [schoolId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -360,4 +368,13 @@ model IngestionLog {
   createdAt       DateTime @default(now()) @map("created_at") @db.DateTime2
 
   @@map("ingestion_logs")
+}
+
+model Teacher {
+  id        Int     @id @default(autoincrement())
+  teacherId String  @unique @map("teacher_id") @db.NVarChar(50)
+  name      String  @db.NVarChar(255)
+  classes   Class[]
+
+  @@map("teachers")
 }

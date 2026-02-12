@@ -28,7 +28,22 @@ export class IngestClassDto {
   @IsString()
   @IsOptional()
   @MaxLength(255)
-  teacher?: string;
+  courseTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  teacherId?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  teacherName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10)
+  semesterTerm?: string;
 
   @IsString()
   @IsOptional()

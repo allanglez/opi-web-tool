@@ -14,8 +14,10 @@ export interface User {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const isAuthenticated = ref(false);
+
   const isLoading = ref(false);
   const error = ref<string | null>(null);
+  const token = ref<string | null>(null);
 
   const hasRole = (role: string) => {
     return user.value?.roles.includes(role) || false;
@@ -73,5 +75,6 @@ export const useAuthStore = defineStore('auth', () => {
     hasAnyRole,
     fetchMe,
     logout,
+    token, // Return token for component access
   };
 });

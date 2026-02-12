@@ -9,9 +9,9 @@
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-semibold text-neutral-900">Ingestion Runs</h2>
         <button
-          @click="fetchLogs"
           :disabled="isLoading"
           class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-neutral-300 transition-colors"
+          @click="fetchLogs"
         >
           {{ isLoading ? 'Refreshing...' : 'Refresh' }}
         </button>

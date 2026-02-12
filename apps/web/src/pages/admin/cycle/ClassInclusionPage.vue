@@ -12,8 +12,8 @@
           <label class="block text-sm font-medium text-neutral-700 mb-1">Cycle</label>
           <select
             v-model="filters.cycleId"
-            @change="fetchClasses"
             class="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @change="fetchClasses"
           >
             <option value="">All Cycles</option>
             <option v-if="activeCycle" :value="activeCycle.id">{{ activeCycle.name }}</option>
@@ -23,8 +23,8 @@
           <label class="block text-sm font-medium text-neutral-700 mb-1">School</label>
           <select
             v-model="filters.schoolId"
-            @change="fetchClasses"
             class="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @change="fetchClasses"
           >
             <option value="">All Schools</option>
           </select>
@@ -33,8 +33,8 @@
           <label class="block text-sm font-medium text-neutral-700 mb-1">Program</label>
           <select
             v-model="filters.programId"
-            @change="fetchClasses"
             class="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @change="fetchClasses"
           >
             <option value="">All Programs</option>
           </select>
@@ -48,9 +48,9 @@
           Classes ({{ classes.length }})
         </h2>
         <button
-          @click="fetchClasses"
           :disabled="isLoading"
           class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-neutral-300 transition-colors"
+          @click="fetchClasses"
         >
           {{ isLoading ? 'Refreshing...' : 'Refresh' }}
         </button>
@@ -99,10 +99,10 @@
               </td>
               <td class="px-4 py-3 text-sm">
                 <button
-                  @click="toggleInclusion(classItem)"
                   :disabled="updatingClassIds.has(classItem.id)"
                   class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   :class="classItem.isIncluded ? 'bg-green-600' : 'bg-neutral-300'"
+                  @click="toggleInclusion(classItem)"
                 >
                   <span
                     class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"

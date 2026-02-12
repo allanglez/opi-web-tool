@@ -12,20 +12,20 @@
           <p class="text-sm font-semibold text-yellow-800 mb-3">Development Mode - Mock Auth</p>
           <div class="space-y-2">
             <button
-              @click="mockLogin(1)"
               class="w-full px-4 py-2 bg-yukon-navy text-white rounded hover:bg-yukon-teal transition-colors"
+              @click="mockLogin(1)"
             >
               Login as Admin
             </button>
             <button
-              @click="mockLogin(2)"
               class="w-full px-4 py-2 bg-yukon-navy text-white rounded hover:bg-yukon-teal transition-colors"
+              @click="mockLogin(2)"
             >
               Login as Coordinator
             </button>
             <button
-              @click="mockLogin(3)"
               class="w-full px-4 py-2 bg-yukon-navy text-white rounded hover:bg-yukon-teal transition-colors"
+              @click="mockLogin(3)"
             >
               Login as Evaluator
             </button>
@@ -35,8 +35,8 @@
         <!-- Auth0 Login (Production) -->
         <button
           v-if="!isDevelopment"
-          @click="loginWithAuth0"
           class="w-full px-6 py-3 bg-yukon-navy text-white rounded hover:bg-yukon-teal transition-colors font-medium"
+          @click="loginWithAuth0"
         >
           Sign in with MyYukon
         </button>

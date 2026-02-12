@@ -14,12 +14,12 @@
     <!-- Error State -->
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <p class="text-red-800">{{ error }}</p>
-      <button @click="fetchClasses" class="mt-2 text-sm text-red-600 hover:underline">Retry</button>
+      <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchClasses">Retry</button>
     </div>
 
     <template v-else>
       <!-- Cycle Info -->
-      <section class="mb-6" v-if="cycleInfo">
+      <section v-if="cycleInfo" class="mb-6">
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p class="text-sm text-blue-800">
             <span class="font-semibold">Active Cycle:</span> {{ cycleInfo.name }}

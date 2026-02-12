@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import ClassInclusionPage from '../../../../pages/admin/cycle/ClassInclusionPage.vue';
 
 // Mock fetch globally
-global.fetch = vi.fn();
+globalThis.fetch = vi.fn();
 
 describe('ClassInclusionPage', () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('ClassInclusionPage', () => {
   });
 
   it('should display empty state when no classes exist', async () => {
-    (global.fetch as any)
+    (globalThis.fetch as any)
       .mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -78,7 +78,7 @@ describe('ClassInclusionPage', () => {
       },
     ];
 
-    (global.fetch as any)
+    (globalThis.fetch as any)
       .mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -124,7 +124,7 @@ describe('ClassInclusionPage', () => {
       },
     };
 
-    (global.fetch as any)
+    (globalThis.fetch as any)
       .mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -157,7 +157,7 @@ describe('ClassInclusionPage', () => {
       await wrapper.vm.$nextTick();
     }
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/admin/classes/1'),
       expect.objectContaining({
         method: 'PATCH',
@@ -175,7 +175,7 @@ describe('ClassInclusionPage', () => {
       _count: { classStudents: 25 },
     };
 
-    (global.fetch as any)
+    (globalThis.fetch as any)
       .mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -202,6 +202,6 @@ describe('ClassInclusionPage', () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     // Verify initial state
-    expect(wrapper.vm.classes[0]?.isIncluded).toBe(true);
+    expect((wrapper.vm as any).classes[0]?.isIncluded).toBe(true);
   });
 });

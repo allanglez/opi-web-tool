@@ -4,7 +4,7 @@ import { CreateCycleDto } from './dto/create-cycle.dto';
 
 @Injectable()
 export class CyclesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getActiveCycle() {
     const cycle = await this.prisma.assessmentCycle.findFirst({
@@ -50,6 +50,7 @@ export class CyclesService {
     return this.prisma.assessmentCycle.create({
       data: {
         name: dto.name,
+        year: dto.year,
         startsOn,
         endsOn,
         isActive: true,

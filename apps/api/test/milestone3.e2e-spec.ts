@@ -6,9 +6,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Milestone 3 Integration Tests (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let adminToken: string;
-  let coordinatorToken: string;
-  let m2mToken: string;
+
+
+
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -17,16 +17,16 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-    
+
     prisma = app.get<PrismaService>(PrismaService);
-    
+
     await app.init();
 
     // Mock tokens for testing
     // In real tests, these would be generated with proper JWT signatures
-    adminToken = 'mock-admin-token';
-    coordinatorToken = 'mock-coordinator-token';
-    m2mToken = 'mock-m2m-token';
+
+
+
   });
 
   afterAll(async () => {
@@ -59,6 +59,7 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       const cycle = await prisma.assessmentCycle.create({
         data: {
           name: 'Test Cycle 2026',
+          year: 2026,
           startsOn: new Date('2026-01-01'),
           endsOn: new Date('2026-12-31'),
           isActive: true,
@@ -73,6 +74,7 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       await prisma.class.deleteMany({});
       await prisma.student.deleteMany({});
       await prisma.program.deleteMany({});
+      await prisma.teacher.deleteMany({});
       await prisma.school.deleteMany({});
       await prisma.ingestionLog.deleteMany({});
       await prisma.assessmentCycle.deleteMany({});
@@ -141,7 +143,7 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       const schools = await prisma.school.findMany({
         where: { schoolCode: { in: ['TEST001', 'TEST002'] } },
       });
-      
+
       expect(schools.length).toBe(2);
       const school1 = schools.find((s) => s.schoolCode === 'TEST001');
       expect(school1?.name).toBe('Test Elementary School - Updated');
@@ -211,7 +213,7 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
         where: { cycleId },
       });
       expect(students2.length).toBe(2); // Still 2, not 4
-      
+
       const updatedStudent = students2.find((s) => s.studentNumber === 'STU001');
       expect(updatedStudent?.grade).toBe(6);
     });
@@ -225,6 +227,7 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       const cycle = await prisma.assessmentCycle.create({
         data: {
           name: 'Unapproved Cycle',
+          year: 2026,
           startsOn: new Date('2026-01-01'),
           endsOn: new Date('2026-12-31'),
           isActive: true,
@@ -243,7 +246,7 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       });
 
       expect(cycle?.dataApprovedAt).toBeNull();
-      
+
       // In a real test, we would make an HTTP request to a protected endpoint
       // and expect a 403 response with error code 'CYCLE_NOT_APPROVED'
       const shouldBlock = !cycle?.dataApprovedAt;
@@ -254,8 +257,8 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       // Create admin user for approval
       const adminUser = await prisma.user.create({
         data: {
-          externalAuthId: 'auth0|test-admin',
-          email: 'admin@test.com',
+          externalAuthId: `auth0|test-admin-${Date.now()}`,
+          email: `admin-${Date.now()}@test.com`,
           firstName: 'Admin',
           lastName: 'User',
           isActive: true,
@@ -276,11 +279,15 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       });
 
       expect(cycle?.dataApprovedAt).not.toBeNull();
-      
+
       const shouldAllow = !!cycle?.dataApprovedAt;
       expect(shouldAllow).toBe(true);
 
       // Cleanup
+      await prisma.assessmentCycle.update({
+        where: { id: cycleId },
+        data: { dataApprovedBy: null, dataApprovedAt: null },
+      });
       await prisma.user.delete({ where: { id: adminUser.id } });
     });
   });
@@ -294,6 +301,7 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
       const cycle = await prisma.assessmentCycle.create({
         data: {
           name: 'Test Cycle for Classes',
+          year: 2026,
           startsOn: new Date('2026-01-01'),
           endsOn: new Date('2026-12-31'),
           isActive: true,
@@ -315,7 +323,6 @@ describe('Milestone 3 Integration Tests (e2e)', () => {
           schoolId,
           classCode: 'CLASS-001',
           grade: 5,
-          teacher: 'Test Teacher',
           isIncluded: true,
         },
       });

@@ -1,10 +1,15 @@
-import { IsString, IsNotEmpty, IsDateString, MaxLength } from 'class-validator';
+import { IsString, IsInt, IsNotEmpty, IsDateString, MaxLength, Min } from 'class-validator';
 
 export class CreateCycleDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
   name!: string;
+
+  @IsInt()
+  @IsNotEmpty()
+  @Min(2000)
+  year!: number;
 
   @IsDateString()
   @IsNotEmpty()

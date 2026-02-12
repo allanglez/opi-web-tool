@@ -30,6 +30,7 @@ export class EvaluatorService {
                     include: {
                         school: true,
                         program: true,
+                        teacher: true,
                         classStudents: {
                             include: {
                                 student: true,
@@ -54,7 +55,7 @@ export class EvaluatorService {
                         id: assignment.class.id,
                         classCode: assignment.class.classCode,
                         grade: assignment.class.grade,
-                        teacher: assignment.class.teacher,
+                        teacher: assignment.class.teacher?.name ?? null,
                         school: assignment.class.school,
                         program: assignment.class.program,
                         totalStudents: 0,
@@ -96,7 +97,7 @@ export class EvaluatorService {
                     id: assignment.class.id,
                     classCode: assignment.class.classCode,
                     grade: assignment.class.grade,
-                    teacher: assignment.class.teacher,
+                    teacher: assignment.class.teacher?.name ?? null,
                     school: assignment.class.school,
                     program: assignment.class.program,
                     totalStudents: studentIds.length,
@@ -147,6 +148,7 @@ export class EvaluatorService {
             include: {
                 school: true,
                 program: true,
+                teacher: true,
                 classStudents: {
                     include: {
                         student: true,
@@ -233,7 +235,7 @@ export class EvaluatorService {
                 id: classEntity.id,
                 classCode: classEntity.classCode,
                 grade: classEntity.grade,
-                teacher: classEntity.teacher,
+                teacher: classEntity.teacher?.name ?? null,
                 school: classEntity.school,
                 program: classEntity.program,
             },

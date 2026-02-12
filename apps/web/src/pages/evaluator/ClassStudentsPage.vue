@@ -18,7 +18,7 @@
     <!-- Error State -->
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <p class="text-red-800">{{ error }}</p>
-      <button @click="fetchStudents" class="mt-2 text-sm text-red-600 hover:underline">Retry</button>
+      <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchStudents">Retry</button>
     </div>
 
     <template v-else>
@@ -96,12 +96,12 @@
                     <!-- Start/Continue Assessment -->
                     <button
                       v-if="student.assessment.status !== 'COMPLETED'"
-                      @click="startAssessment(student)"
                       :disabled="student.isLocked || startingId === student.id"
                       class="px-3 py-1 text-sm rounded-md"
                       :class="student.isLocked 
                         ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' 
                         : 'bg-blue-600 text-white hover:bg-blue-700'"
+                      @click="startAssessment(student)"
                     >
                       {{ startingId === student.id ? 'Starting...' : (student.assessment.status === 'NOT_STARTED' ? 'Start' : 'Continue') }}
                     </button>

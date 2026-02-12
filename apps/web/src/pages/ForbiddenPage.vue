@@ -7,8 +7,8 @@
         :show-retry="false"
       />
       <button
-        @click="goBack"
         class="mt-4 px-4 py-2 bg-yukon-navy text-white rounded hover:bg-yukon-teal transition-colors"
+        @click="goBack"
       >
         Go Back
       </button>

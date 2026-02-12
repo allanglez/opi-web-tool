@@ -16,7 +16,7 @@ const router = createRouter({
         } else if (authStore.isAdmin) {
           next({ name: 'admin-dashboard' });
         } else if (authStore.isCoordinator) {
-          next({ name: 'admin-dashboard' });
+          next({ name: 'coordinator-dashboard' });
         } else if (authStore.isEvaluator) {
           next({ name: 'evaluator-dashboard' });
         } else {
@@ -74,9 +74,21 @@ const router = createRouter({
     },
     // Coordinator routes
     {
+      path: '/coordinator/dashboard',
+      name: 'coordinator-dashboard',
+      component: () => import('../pages/coordinator/CoordinatorDashboardPage.vue'),
+      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+    },
+    {
       path: '/coordinator/assignments',
       name: 'coordinator-assignments',
       component: () => import('../pages/coordinator/AssignmentsPage.vue'),
+      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/coordinator/scheduling',
+      name: 'coordinator-scheduling',
+      component: () => import('../pages/coordinator/SchedulingPage.vue'),
       meta: { roles: ['COORDINATOR', 'ADMIN'] },
     },
     // Evaluator routes

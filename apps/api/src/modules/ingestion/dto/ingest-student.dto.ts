@@ -30,6 +30,16 @@ export class IngestStudentDto {
   @MaxLength(100)
   lastName!: string;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  middleName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  pen?: string;
+
   @IsInt()
   @IsOptional()
   @Min(1)

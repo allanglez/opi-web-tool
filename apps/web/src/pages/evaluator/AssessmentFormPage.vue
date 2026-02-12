@@ -21,7 +21,7 @@
     <!-- Error State -->
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <p class="text-red-800">{{ error }}</p>
-      <button @click="fetchAssessment" class="mt-2 text-sm text-red-600 hover:underline">Retry</button>
+      <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchAssessment">Retry</button>
     </div>
 
     <!-- Lock Conflict Warning -->
@@ -73,12 +73,12 @@
                 v-for="level in opiLevels"
                 :key="level.id"
                 type="button"
-                @click="form.opiLevelId = level.id"
                 :disabled="assessment.status === 'COMPLETED'"
                 class="px-4 py-3 text-sm font-medium rounded-lg border-2 transition-colors"
                 :class="form.opiLevelId === level.id 
                   ? 'border-blue-600 bg-blue-50 text-blue-800' 
                   : 'border-neutral-200 hover:border-neutral-300 text-neutral-700'"
+                @click="form.opiLevelId = level.id"
               >
                 {{ level.description }}
               </button>
@@ -103,9 +103,9 @@
           <div v-if="assessment.status !== 'COMPLETED'" class="flex gap-4">
             <button
               type="button"
-              @click="saveDraft"
               :disabled="isSaving"
               class="px-6 py-2 text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200 disabled:opacity-50"
+              @click="saveDraft"
             >
               {{ isSaving ? 'Saving...' : 'Save Draft' }}
             </button>

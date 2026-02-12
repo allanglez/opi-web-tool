@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import CycleSetupPage from '../../../../pages/admin/cycle/CycleSetupPage.vue';
 
 // Mock fetch globally
-global.fetch = vi.fn();
+globalThis.fetch = vi.fn();
 
 describe('CycleSetupPage', () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('CycleSetupPage', () => {
   });
 
   it('should display warning when no active cycle exists', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: false,
       status: 404,
     });
@@ -56,7 +56,7 @@ describe('CycleSetupPage', () => {
       isApproved: false,
     };
 
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockCycle,
     });
@@ -86,7 +86,7 @@ describe('CycleSetupPage', () => {
       isApproved: false,
     };
 
-    (global.fetch as any)
+    (globalThis.fetch as any)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => mockCycle,
@@ -120,7 +120,7 @@ describe('CycleSetupPage', () => {
       isActive: true,
     };
 
-    (global.fetch as any)
+    (globalThis.fetch as any)
       .mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -151,6 +151,6 @@ describe('CycleSetupPage', () => {
       await form.trigger('submit.prevent');
     }
 
-    expect(global.fetch).toHaveBeenCalled();
+    expect(globalThis.fetch).toHaveBeenCalled();
   });
 });

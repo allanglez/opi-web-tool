@@ -9,6 +9,7 @@ import { CyclesModule } from './modules/cycles/cycles.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
+import { SchedulingModule } from './modules/scheduling/scheduling.module';
 import { EvaluatorModule } from './modules/evaluator/evaluator.module';
 import { AssessmentsModule } from './modules/assessments/assessments.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -30,6 +31,7 @@ import { ScopesGuard } from './common/guards/scopes.guard';
     ClassesModule,
     AuditModule,
     AssignmentsModule,
+    SchedulingModule,
     EvaluatorModule,
     AssessmentsModule,
   ],

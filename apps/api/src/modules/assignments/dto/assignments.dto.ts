@@ -1,4 +1,10 @@
-import { IsInt, IsOptional } from 'class-validator';
+import {
+    ArrayMinSize,
+    IsArray,
+    IsInt,
+    IsOptional,
+    ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateAssignmentDto {
@@ -30,4 +36,26 @@ export class QueryAssignmentsDto {
     @IsInt()
     @Type(() => Number)
     evaluatorId?: number;
+}
+
+export class BulkAssignmentItemDto {
+    @IsInt()
+    @Type(() => Number)
+    classId!: number;
+
+    @IsInt()
+    @Type(() => Number)
+    evaluatorId!: number;
+}
+
+export class BulkCreateAssignmentsDto {
+    @IsInt()
+    @Type(() => Number)
+    cycleId!: number;
+
+    @IsArray()
+    @ArrayMinSize(1)
+    @ValidateNested({ each: true })
+    @Type(() => BulkAssignmentItemDto)
+    assignments!: BulkAssignmentItemDto[];
 }

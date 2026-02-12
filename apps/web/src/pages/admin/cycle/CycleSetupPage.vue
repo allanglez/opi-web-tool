@@ -20,7 +20,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
       <BaseCard>
         <h2 class="text-xl font-semibold text-neutral-900 mb-4">Create New Cycle</h2>
-        <form @submit.prevent="handleCreateCycle" class="space-y-4">
+        <form class="space-y-4" @submit.prevent="handleCreateCycle">
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">Cycle Name</label>
             <input
@@ -100,9 +100,9 @@
           </div>
           <button
             v-if="!activeCycle.isApproved"
-            @click="handleApproveCycle"
             :disabled="isApproving || !hasIngestionData"
             class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
+            @click="handleApproveCycle"
           >
             {{ isApproving ? 'Approving...' : 'Approve Data' }}
           </button>

@@ -1,12 +1,12 @@
 <template>
   <AppShell :user="currentUser">
+    <EvaluatorSubNav />
+
     <!-- Back Navigation -->
-    <div class="mb-4">
-      <router-link to="/evaluator/dashboard" class="text-blue-600 hover:text-blue-800 text-sm flex items-center">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-        Back to Dashboard
+    <div class="mb-4 mt-4">
+      <router-link to="/evaluator/class-view" class="text-neutral-600 hover:text-neutral-800 text-sm flex items-center">
+        <ChevronLeft class="w-4 h-4 mr-1" />
+        Back to Class View
       </router-link>
     </div>
 
@@ -53,71 +53,62 @@
             No students in this class.
           </div>
 
-          <div v-else class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-neutral-200">
-              <thead>
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Student</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Student #</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">OPI Level</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-neutral-200">
-                <tr v-for="student in students" :key="student.id">
-                  <td class="px-4 py-3 whitespace-nowrap">
-                    <div class="text-sm font-medium text-neutral-900">
-                      {{ student.lastName }}, {{ student.firstName }}
-                    </div>
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-600">
-                    {{ student.studentNumber }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap">
-                    <span 
-                      class="px-2 py-1 text-xs font-medium rounded-full"
-                      :class="getStatusClass(student)"
-                    >
-                      {{ student.assessment.status.replace('_', ' ') }}
-                    </span>
-                    <!-- Lock Badge -->
-                    <span 
-                      v-if="student.isLocked" 
-                      class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800"
-                      :title="`Locked by ${student.assessment.evaluatorName}`"
-                    >
-                      🔒 {{ student.assessment.evaluatorName }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-600">
-                    {{ student.assessment.opiLevel || '-' }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap">
-                    <!-- Start/Continue Assessment -->
-                    <button
-                      v-if="student.assessment.status !== 'COMPLETED'"
-                      :disabled="student.isLocked || startingId === student.id"
-                      class="px-3 py-1 text-sm rounded-md"
-                      :class="student.isLocked 
-                        ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'"
-                      @click="startAssessment(student)"
-                    >
-                      {{ startingId === student.id ? 'Starting...' : (student.assessment.status === 'NOT_STARTED' ? 'Start' : 'Continue') }}
-                    </button>
-                    <!-- View Completed -->
-                    <router-link
-                      v-else-if="student.assessment.id"
-                      :to="`/evaluator/assessments/${student.assessment.id}`"
-                      class="px-3 py-1 text-sm bg-green-100 text-green-800 rounded-md hover:bg-green-200"
-                    >
-                      View
-                    </router-link>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-else>
+            <AppDataTable
+              :data="students"
+              :columns="studentColumns"
+              search-placeholder="Search student number, name, status..."
+              empty-text="No students in this class."
+              :initial-page-size="10"
+            >
+              <template #cell-student="{ row }">
+                <div class="text-sm font-medium text-neutral-900">
+                  {{ asStudent(row).lastName }}, {{ asStudent(row).firstName }}
+                </div>
+              </template>
+
+              <template #cell-studentNumber="{ row }">
+                <span class="text-sm text-neutral-600">{{ asStudent(row).studentNumber }}</span>
+              </template>
+
+              <template #cell-status="{ row }">
+                <span class="px-2 py-1 text-xs font-medium rounded-full" :class="getStatusClass(asStudent(row))">
+                  {{ asStudent(row).assessment.status.replace('_', ' ') }}
+                </span>
+                <span
+                  v-if="asStudent(row).isLocked"
+                  class="ml-2 inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800"
+                  :title="`Locked by ${asStudent(row).assessment.evaluatorName}`"
+                >
+                  <Lock class="w-3 h-3" /> {{ asStudent(row).assessment.evaluatorName }}
+                </span>
+              </template>
+
+              <template #cell-opiLevel="{ row }">
+                <span class="text-sm text-neutral-600">{{ asStudent(row).assessment.opiLevel || '-' }}</span>
+              </template>
+
+              <template #cell-actions="{ row }">
+                <button
+                  v-if="asStudent(row).assessment.status !== 'COMPLETED'"
+                  :disabled="asStudent(row).isLocked || startingId === asStudent(row).id"
+                  class="px-3 py-1 text-sm rounded-md"
+                  :class="asStudent(row).isLocked
+                    ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'"
+                  @click="startAssessment(asStudent(row))"
+                >
+                  {{ startingId === asStudent(row).id ? 'Starting...' : (asStudent(row).assessment.status === 'NOT_STARTED' ? 'Start' : 'Continue') }}
+                </button>
+                <router-link
+                  v-else-if="asStudent(row).assessment.id"
+                  :to="`/evaluator/assessments/${asStudent(row).assessment.id}`"
+                  class="px-3 py-1 text-sm bg-green-100 text-green-800 rounded-md hover:bg-green-200"
+                >
+                  View
+                </router-link>
+              </template>
+            </AppDataTable>
           </div>
         </BaseCard>
       </section>
@@ -127,11 +118,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ChevronLeft, Lock } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
+import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
+import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
+import type { DataTableColumn } from '../../components/ui/data-table/types';
 
 const route = useRoute();
 const router = useRouter();
@@ -179,6 +174,49 @@ const students = ref<StudentWithAssessment[]>([]);
 const cycleId = ref<number | null>(null);
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
+const studentColumns: DataTableColumn<StudentWithAssessment>[] = [
+  {
+    key: 'student',
+    header: 'Student',
+    sortable: true,
+    searchable: true,
+    value: (row) => `${row.lastName}, ${row.firstName}`,
+    sortValue: (row) => `${row.lastName} ${row.firstName}`,
+  },
+  {
+    key: 'studentNumber',
+    header: 'Student #',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.studentNumber,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.assessment.status,
+  },
+  {
+    key: 'opiLevel',
+    header: 'OPI Level',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.assessment.opiLevel || '-',
+  },
+  {
+    key: 'actions',
+    header: 'Actions',
+    sortable: false,
+    searchable: false,
+    value: () => '',
+  },
+];
+
+function asStudent(row: unknown): StudentWithAssessment {
+  return row as StudentWithAssessment;
+}
+
 // Computed
 const completedCount = computed(() => 
   students.value.filter(s => s.assessment.status === 'COMPLETED').length
@@ -206,16 +244,24 @@ function getStatusClass(student: StudentWithAssessment): string {
   }
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authStore.user?.id) {
+    headers['X-Mock-User-Id'] = String(authStore.user.id);
+  }
+  return headers;
+}
+
 // API calls
 async function fetchStudents() {
   const classId = route.params.classId;
   if (!classId) return;
 
   try {
-    const token = authStore.token;
-    const headers = { 'Authorization': `Bearer ${token}` };
-
-    const res = await fetch(`${API_BASE}/evaluator/classes/${classId}/students`, { headers });
+    const res = await fetch(`${API_BASE}/evaluator/classes/${classId}/students`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
     
     if (res.status === 403) {
       const err = await res.json();
@@ -237,7 +283,10 @@ async function fetchStudents() {
     error.value = null;
 
     // Get cycle ID from active cycle
-    const cycleRes = await fetch(`${API_BASE}/cycles/active`, { headers });
+    const cycleRes = await fetch(`${API_BASE}/cycles/active`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
     if (cycleRes.ok) {
       const cycle = await cycleRes.json();
       cycleId.value = cycle?.id;
@@ -254,13 +303,10 @@ async function startAssessment(student: StudentWithAssessment) {
 
   startingId.value = student.id;
   try {
-    const token = authStore.token;
     const res = await fetch(`${API_BASE}/assessments/start`, {
       method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${token}`, 
-        'Content-Type': 'application/json' 
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify({
         studentId: student.id,
         cycleId: cycleId.value,

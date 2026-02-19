@@ -15,14 +15,26 @@ import {
   CreateSchoolAssessmentDateDto,
 } from './dto/scheduling.dto';
 
-@Controller('coordinator/schools')
+@Controller('coordinator')
 export class SchedulingController {
   constructor(private readonly schedulingService: SchedulingService) {}
 
-  @Get()
+  @Get('dashboard')
+  @Roles('COORDINATOR', 'ADMIN')
+  async getDashboard() {
+    return this.schedulingService.getCoordinatorDashboard();
+  }
+
+  @Get('schools')
   @Roles('COORDINATOR', 'ADMIN')
   async getSchools() {
     return this.schedulingService.getCoordinatorSchools();
+  }
+
+  @Get('scheduling')
+  @Roles('COORDINATOR', 'ADMIN')
+  async getSchedulingOverview() {
+    return this.schedulingService.getSchedulingOverview();
   }
 
   @Get(':id/dates')

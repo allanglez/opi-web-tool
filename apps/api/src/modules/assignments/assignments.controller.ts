@@ -45,13 +45,16 @@ export class AssignmentsController {
     return this.assignmentsService.findAssignments(query);
   }
 
-  @Delete(':id')
+  @Get('management')
   @Roles('COORDINATOR', 'ADMIN')
-  async deleteAssignment(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number },
+  async getAssignmentManagement(
+    @Query('cycleId') cycleId?: string,
+    @Query('schoolId') schoolId?: string,
   ) {
-    return this.assignmentsService.deleteAssignment(id, user.id);
+    return this.assignmentsService.getAssignmentManagement(
+      cycleId ? parseInt(cycleId, 10) : undefined,
+      schoolId ? parseInt(schoolId, 10) : undefined,
+    );
   }
 
   @Get('evaluators')
@@ -72,5 +75,14 @@ export class AssignmentsController {
     return this.assignmentsService.getAssignableClasses(
       cycleId ? parseInt(cycleId, 10) : undefined,
     );
+  }
+
+  @Delete(':id')
+  @Roles('COORDINATOR', 'ADMIN')
+  async deleteAssignment(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { id: number },
+  ) {
+    return this.assignmentsService.deleteAssignment(id, user.id);
   }
 }

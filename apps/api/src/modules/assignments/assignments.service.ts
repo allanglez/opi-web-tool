@@ -301,6 +301,193 @@ export class AssignmentsService {
     return { success: true, deletedId: id };
   }
 
+  async getAssignmentManagement(cycleId?: number, schoolId?: number) {
+    const cycle = await this.cyclesService.checkCycleApproval();
+    const targetCycleId = cycleId ?? cycle.id;
+
+    // Get all included classes with full details
+    const classWhere: Record<string, unknown> = {
+      cycleId: targetCycleId,
+      isIncluded: true,
+    };
+    if (schoolId) {
+      classWhere.schoolId = schoolId;
+    }
+
+    const classes = await this.prisma.class.findMany({
+      where: classWhere,
+      include: {
+        school: {
+          select: { id: true, schoolCode: true, name: true, schoolType: true },
+        },
+        program: {
+          select: { id: true, name: true },
+        },
+        teacher: {
+          select: { id: true, name: true },
+        },
+        classStudents: {
+          select: {
+            studentId: true,
+            student: {
+              select: {
+                id: true,
+                assessments: {
+                  where: { cycleId: targetCycleId },
+                  select: { status: true },
+                },
+              },
+            },
+          },
+        },
+        evaluatorAssignments: {
+          where: { cycleId: targetCycleId },
+          select: {
+            id: true,
+            evaluatorId: true,
+            evaluator: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+          },
+        },
+      },
+      orderBy: [{ school: { name: 'asc' } }, { classCode: 'asc' }],
+    });
+
+    // Get school assessment dates
+    const schoolIds = [...new Set(classes.map((c) => c.schoolId))];
+    const schoolDates = await this.prisma.schoolAssessmentDate.findMany({
+      where: {
+        cycleId: targetCycleId,
+        schoolId: { in: schoolIds },
+      },
+      select: {
+        schoolId: true,
+        assessmentDate: true,
+      },
+      orderBy: { assessmentDate: 'asc' },
+    });
+
+    const datesBySchool = new Map<number, string[]>();
+    for (const sd of schoolDates) {
+      const arr = datesBySchool.get(sd.schoolId) ?? [];
+      arr.push(sd.assessmentDate.toISOString().slice(0, 10));
+      datesBySchool.set(sd.schoolId, arr);
+    }
+
+    // Build enriched class rows
+    const classRows = classes.map((cls) => {
+      const totalStudents = cls.classStudents.length;
+      const completedStudents = cls.classStudents.filter((cs) =>
+        cs.student.assessments.some((a) => a.status === 'COMPLETED'),
+      ).length;
+      const inProgressStudents = cls.classStudents.filter((cs) =>
+        cs.student.assessments.some((a) => a.status === 'IN_PROGRESS'),
+      ).length;
+      const progress = totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+
+      const evaluators = cls.evaluatorAssignments.map((ea) => ({
+        id: ea.evaluator.id,
+        name: `${ea.evaluator.firstName} ${ea.evaluator.lastName}`.trim(),
+        email: ea.evaluator.email,
+        assignmentId: ea.id,
+      }));
+
+      const schoolType = cls.school.schoolType ??
+        (cls.school.name.toLowerCase().includes('secondary') ? 'Secondary' : 'Elementary');
+
+      const dates = datesBySchool.get(cls.schoolId) ?? [];
+
+      return {
+        id: cls.id,
+        classCode: cls.classCode,
+        grade: cls.grade,
+        school: {
+          id: cls.school.id,
+          schoolCode: cls.school.schoolCode,
+          name: cls.school.name,
+          schoolType,
+        },
+        teacher: cls.teacher ? cls.teacher.name : null,
+        program: cls.program ? cls.program.name : null,
+        totalStudents,
+        completedStudents,
+        inProgressStudents,
+        progress,
+        assessmentDates: dates,
+        assessmentDate: dates[0] ?? null,
+        evaluators,
+        isAssigned: evaluators.length > 0,
+      };
+    });
+
+    // Stats
+    const unassignedClasses = classRows.filter((c) => !c.isAssigned).length;
+    const assignedClasses = classRows.filter((c) => c.isAssigned && c.progress < 100).length;
+    const inProgressClasses = classRows.filter((c) => c.isAssigned && c.progress > 0 && c.progress < 100).length;
+    const completedClasses = classRows.filter((c) => c.progress === 100).length;
+
+    // Evaluator workload cards
+    const evaluators = await this.getEvaluators();
+    const evaluatorWorkload = await Promise.all(
+      evaluators.map(async (ev) => {
+        const evAssignments = await this.prisma.evaluatorAssignment.findMany({
+          where: { cycleId: targetCycleId, evaluatorId: ev.id },
+          select: {
+            classId: true,
+          },
+        });
+        const evClassIds = evAssignments.map((a) => a.classId);
+        const studentCount = evClassIds.length > 0
+          ? await this.prisma.classStudent.count({
+              where: {
+                classId: { in: evClassIds },
+                student: { cycleId: targetCycleId, isActive: true },
+              },
+            })
+          : 0;
+        const completedCount = await this.prisma.assessment.count({
+          where: {
+            cycleId: targetCycleId,
+            evaluatorId: ev.id,
+            status: 'COMPLETED',
+          },
+        });
+        const progress = studentCount > 0 ? Math.round((completedCount / studentCount) * 100) : 0;
+
+        return {
+          id: ev.id,
+          firstName: ev.firstName,
+          lastName: ev.lastName,
+          email: ev.email,
+          classCount: evAssignments.length,
+          studentCount,
+          completedCount,
+          progress,
+        };
+      }),
+    );
+
+    // Schools for filter dropdown
+    const schoolsForFilter = [...new Map(
+      classRows.map((c) => [c.school.id, { id: c.school.id, name: c.school.name }]),
+    ).values()].sort((a, b) => a.name.localeCompare(b.name));
+
+    return {
+      cycle: { id: cycle.id, name: cycle.name },
+      stats: {
+        unassignedClasses,
+        assignedClasses,
+        inProgressClasses,
+        completedClasses,
+        totalClasses: classRows.length,
+      },
+      evaluatorWorkload,
+      schools: schoolsForFilter,
+      classes: classRows,
+    };
+  }
+
   async getEvaluatorWorkloadCounts(cycleId: number) {
     await this.assertActiveApprovedCycle(cycleId);
 

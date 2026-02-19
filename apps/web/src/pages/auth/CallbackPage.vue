@@ -9,19 +9,26 @@ import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import LoadingState from '../../components/ui/LoadingState.vue';
+import { isAuth0Mode } from '../../auth/mode';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
 onMounted(async () => {
+  if (!isAuth0Mode) {
+    router.replace('/login');
+    return;
+  }
+
+  const redirect = sessionStorage.getItem('auth_redirect');
+  sessionStorage.removeItem('auth_redirect');
+
   try {
-    // TODO: Handle Auth0 callback when Auth0 is configured
-    // For now, just fetch the user profile
     await authStore.fetchMe();
-    router.push('/admin/dashboard');
+    router.replace(redirect || authStore.getDefaultRoute());
   } catch (error) {
     console.error('Auth callback error:', error);
-    router.push('/login');
+    router.replace('/login');
   }
 });
 </script>

@@ -25,50 +25,53 @@
         No ingestion runs found. Data has not been imported yet.
       </div>
 
-      <div v-else class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-neutral-50 border-b border-neutral-200">
-            <tr>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Entity Type</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Total</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Upserted</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Failed</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Timestamp</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-neutral-100">
-            <tr v-for="log in logs" :key="log.id" class="hover:bg-neutral-50">
-              <td class="px-4 py-3 text-sm font-medium text-neutral-900">
-                {{ formatEntityType(log.entityType) }}
-              </td>
-              <td class="px-4 py-3 text-sm text-neutral-600">{{ log.recordsTotal }}</td>
-              <td class="px-4 py-3 text-sm text-neutral-600">{{ log.recordsUpserted }}</td>
-              <td class="px-4 py-3 text-sm">
-                <span :class="log.recordsFailed > 0 ? 'text-red-600 font-semibold' : 'text-neutral-600'">
-                  {{ log.recordsFailed }}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-sm text-neutral-600">
-                {{ formatTimestamp(log.createdAt) }}
-              </td>
-              <td class="px-4 py-3 text-sm">
-                <span
-                  v-if="log.recordsFailed === 0"
-                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                >
-                  Success
-                </span>
-                <span
-                  v-else
-                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
-                >
-                  Partial
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <AppDataTable
+          :data="logs"
+          :columns="ingestionColumns"
+          search-placeholder="Search entity type or status..."
+          empty-text="No ingestion runs found."
+          :initial-page-size="10"
+        >
+          <template #cell-entityType="{ row }">
+            <span class="text-sm font-medium text-neutral-900">
+              {{ formatEntityType(asIngestionLog(row).entityType) }}
+            </span>
+          </template>
+
+          <template #cell-recordsTotal="{ row }">
+            <span class="text-sm text-neutral-600">{{ asIngestionLog(row).recordsTotal }}</span>
+          </template>
+
+          <template #cell-recordsUpserted="{ row }">
+            <span class="text-sm text-neutral-600">{{ asIngestionLog(row).recordsUpserted }}</span>
+          </template>
+
+          <template #cell-recordsFailed="{ row }">
+            <span :class="asIngestionLog(row).recordsFailed > 0 ? 'text-red-600 font-semibold text-sm' : 'text-neutral-600 text-sm'">
+              {{ asIngestionLog(row).recordsFailed }}
+            </span>
+          </template>
+
+          <template #cell-createdAt="{ row }">
+            <span class="text-sm text-neutral-600">{{ formatTimestamp(asIngestionLog(row).createdAt) }}</span>
+          </template>
+
+          <template #cell-status="{ row }">
+            <span
+              v-if="asIngestionLog(row).recordsFailed === 0"
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+            >
+              Success
+            </span>
+            <span
+              v-else
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+            >
+              Partial
+            </span>
+          </template>
+        </AppDataTable>
       </div>
 
       <div v-if="selectedLog" class="mt-6 pt-6 border-t border-neutral-200">
@@ -90,6 +93,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../../stores/auth';
 import AppShell from '../../../components/layout/AppShell.vue';
 import BaseCard from '../../../components/ui/BaseCard.vue';
+import AppDataTable from '../../../components/ui/data-table/AppDataTable.vue';
+import type { DataTableColumn } from '../../../components/ui/data-table/types';
 
 const authStore = useAuthStore();
 
@@ -113,6 +118,55 @@ const logs = ref<IngestionLog[]>([]);
 const selectedLog = ref<IngestionLog | null>(null);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+
+const ingestionColumns: DataTableColumn<IngestionLog>[] = [
+  {
+    key: 'entityType',
+    header: 'Entity Type',
+    sortable: true,
+    searchable: true,
+    value: (row) => formatEntityType(row.entityType),
+  },
+  {
+    key: 'recordsTotal',
+    header: 'Total',
+    sortable: true,
+    searchable: false,
+    value: (row) => row.recordsTotal,
+  },
+  {
+    key: 'recordsUpserted',
+    header: 'Upserted',
+    sortable: true,
+    searchable: false,
+    value: (row) => row.recordsUpserted,
+  },
+  {
+    key: 'recordsFailed',
+    header: 'Failed',
+    sortable: true,
+    searchable: false,
+    value: (row) => row.recordsFailed,
+  },
+  {
+    key: 'createdAt',
+    header: 'Timestamp',
+    sortable: true,
+    searchable: false,
+    value: (row) => row.createdAt,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    sortable: true,
+    searchable: true,
+    value: (row) => (row.recordsFailed === 0 ? 'Success' : 'Partial'),
+  },
+];
+
+function asIngestionLog(row: unknown): IngestionLog {
+  return row as IngestionLog;
+}
 
 const formatEntityType = (entityType: string): string => {
   const typeMap: Record<string, string> = {

@@ -13,6 +13,7 @@ import {
     StartAssessmentDto,
     UpdateAssessmentDto,
     CompleteAssessmentDto,
+    ReEvaluateDto,
 } from './dto/assessments.dto';
 
 interface RawAssessment {
@@ -30,6 +31,48 @@ export class AssessmentsService {
         private cyclesService: CyclesService,
         private auditService: AuditService,
     ) { }
+
+    private normalizeCriteriaIds(criteriaIds?: number[]): number[] {
+        if (!criteriaIds || criteriaIds.length === 0) {
+            return [];
+        }
+
+        return [...new Set(criteriaIds.filter((id) => Number.isInteger(id) && id > 0))];
+    }
+
+    private async getValidatedCriteriaForLevel(
+        tx: Prisma.TransactionClient,
+        opiLevelId: number,
+        criteriaIds?: number[],
+    ) {
+        const normalizedCriteriaIds = this.normalizeCriteriaIds(criteriaIds);
+
+        if (normalizedCriteriaIds.length === 0) {
+            return [];
+        }
+
+        const criteria = await tx.assessmentCriteria.findMany({
+            where: {
+                id: { in: normalizedCriteriaIds },
+                opiLevelId,
+                isActive: true,
+            },
+            select: {
+                id: true,
+                description: true,
+            },
+        });
+
+        if (criteria.length !== normalizedCriteriaIds.length) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'One or more selected criteria are invalid for the selected OPI level',
+                error: 'VALIDATION_ERROR',
+            });
+        }
+
+        return criteria;
+    }
 
     /**
      * Start an assessment - locks student to evaluator.
@@ -157,6 +200,7 @@ export class AssessmentsService {
                         'status',
                         existing.status,
                         'IN_PROGRESS',
+                        tx,
                     );
 
                     return updated;
@@ -192,6 +236,7 @@ export class AssessmentsService {
                     'status',
                     'NOT_STARTED',
                     'IN_PROGRESS',
+                    tx,
                 );
 
                 return newAssessment;
@@ -210,7 +255,22 @@ export class AssessmentsService {
         const assessment = await this.prisma.assessment.findUnique({
             where: { id },
             include: {
-                student: true,
+                student: {
+                    include: {
+                        school: true,
+                        classStudents: {
+                            include: {
+                                class: {
+                                    include: {
+                                        school: true,
+                                        program: true,
+                                        teacher: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
                 evaluator: {
                     select: {
                         id: true,
@@ -247,8 +307,20 @@ export class AssessmentsService {
             throw new NotFoundException('Assessment not found');
         }
 
+        // Extract class context from student's class enrollment
+        const classStudent = assessment.student.classStudents?.[0];
+        const classContext = classStudent ? {
+            classId: classStudent.class.id,
+            classCode: classStudent.class.classCode,
+            grade: classStudent.class.grade,
+            schoolName: classStudent.class.school?.name || assessment.student.school?.name || null,
+            programName: classStudent.class.program?.name || null,
+            teacherName: classStudent.class.teacher?.name || null,
+        } : null;
+
         return {
             ...assessment,
+            classContext,
             isLocked:
                 assessment.evaluatorId !== null &&
                 assessment.evaluatorId !== userId &&
@@ -266,6 +338,9 @@ export class AssessmentsService {
     ) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { id },
+            include: {
+                score: true,
+            },
         });
 
         if (!assessment) {
@@ -291,25 +366,59 @@ export class AssessmentsService {
             });
         }
 
+        const targetOpiLevelId = dto.opiLevelId ?? assessment.score?.opiLevelId;
+        const shouldUpdateScore =
+            dto.opiLevelId !== undefined || dto.notes !== undefined;
+
+        if ((shouldUpdateScore || dto.criteriaIds !== undefined) && !targetOpiLevelId) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Select an OPI level before saving notes or criteria',
+                error: 'VALIDATION_ERROR',
+            });
+        }
+
         // Update assessment
-        const updated = await this.prisma.$transaction(async (tx) => {
-            // Update score if provided
-            if (dto.opiLevelId !== undefined) {
+        const updated = await this.prisma.$transaction(
+            async (tx: Prisma.TransactionClient) => {
+            if (shouldUpdateScore && targetOpiLevelId) {
                 await tx.assessmentScore.upsert({
                     where: { assessmentId: id },
                     create: {
                         assessmentId: id,
-                        opiLevelId: dto.opiLevelId,
-                        notes: dto.notes ?? null,
+                        opiLevelId: targetOpiLevelId,
+                        notes: dto.notes ?? assessment.score?.notes ?? null,
                         updatedBy: userId,
                     },
                     update: {
-                        opiLevelId: dto.opiLevelId,
-                        notes: dto.notes ?? null,
+                        opiLevelId: targetOpiLevelId,
+                        notes: dto.notes ?? assessment.score?.notes ?? null,
                         updatedBy: userId,
                         updatedAt: new Date(),
                     },
                 });
+            }
+
+            if (dto.criteriaIds !== undefined && targetOpiLevelId) {
+                const selectedCriteria = await this.getValidatedCriteriaForLevel(
+                    tx,
+                    targetOpiLevelId,
+                    dto.criteriaIds,
+                );
+
+                await tx.assessmentCriteriaResult.deleteMany({
+                    where: { assessmentId: id },
+                });
+
+                if (selectedCriteria.length > 0) {
+                    await tx.assessmentCriteriaResult.createMany({
+                        data: selectedCriteria.map((criteria) => ({
+                            assessmentId: id,
+                            criteriaId: criteria.id,
+                            met: true,
+                        })),
+                    });
+                }
             }
 
             // Update lastModifiedAt
@@ -332,19 +441,36 @@ export class AssessmentsService {
                             opiLevel: true,
                         },
                     },
+                    criteriaResults: {
+                        include: {
+                            criteria: true,
+                        },
+                    },
                 },
             });
         });
 
-        // Audit log
-        await this.auditService.logAssessmentAction(
-            id,
-            'ASSESSMENT_UPDATE',
-            userId,
-            'opiLevelId',
-            undefined,
-            dto.opiLevelId?.toString(),
-        );
+        if (dto.opiLevelId !== undefined) {
+            await this.auditService.logAssessmentAction(
+                id,
+                'ASSESSMENT_UPDATE',
+                userId,
+                'opiLevelId',
+                assessment.score?.opiLevelId?.toString(),
+                dto.opiLevelId.toString(),
+            );
+        }
+
+        if (dto.criteriaIds !== undefined) {
+            await this.auditService.logAssessmentAction(
+                id,
+                'ASSESSMENT_UPDATE',
+                userId,
+                'criteria_count',
+                undefined,
+                this.normalizeCriteriaIds(dto.criteriaIds).length.toString(),
+            );
+        }
 
         return updated;
     }
@@ -390,50 +516,88 @@ export class AssessmentsService {
             });
         }
 
-        // Complete assessment
-        const completed = await this.prisma.$transaction(async (tx) => {
-            // Upsert score
-            await tx.assessmentScore.upsert({
-                where: { assessmentId: id },
-                create: {
-                    assessmentId: id,
-                    opiLevelId: dto.opiLevelId,
-                    notes: dto.notes ?? null,
-                    updatedBy: userId,
-                },
-                update: {
-                    opiLevelId: dto.opiLevelId,
-                    notes: dto.notes ?? null,
-                    updatedBy: userId,
-                    updatedAt: new Date(),
-                },
-            });
-
-            // Update assessment status
-            return tx.assessment.update({
-                where: { id },
-                data: {
-                    status: 'COMPLETED',
-                    completedAt: new Date(),
-                    lastModifiedAt: new Date(),
-                },
-                include: {
-                    student: true,
-                    evaluator: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                        },
-                    },
-                    score: {
-                        include: {
-                            opiLevel: true,
-                        },
-                    },
-                },
-            });
+        // Check if audio recording is required for completion
+        const hasAudio = await this.prisma.audioRecording.findFirst({
+            where: { assessmentId: id },
         });
+
+        if (!hasAudio) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Audio recording is required to complete an assessment',
+                error: 'AUDIO_REQUIRED',
+            });
+        }
+
+        // Complete assessment
+        const completed = await this.prisma.$transaction(
+            async (tx: Prisma.TransactionClient) => {
+                const selectedCriteria = await this.getValidatedCriteriaForLevel(
+                    tx,
+                    dto.opiLevelId,
+                    dto.criteriaIds,
+                );
+
+                await tx.assessmentScore.upsert({
+                    where: { assessmentId: id },
+                    create: {
+                        assessmentId: id,
+                        opiLevelId: dto.opiLevelId,
+                        notes: dto.notes ?? null,
+                        updatedBy: userId,
+                    },
+                    update: {
+                        opiLevelId: dto.opiLevelId,
+                        notes: dto.notes ?? null,
+                        updatedBy: userId,
+                        updatedAt: new Date(),
+                    },
+                });
+
+                await tx.assessmentCriteriaResult.deleteMany({
+                    where: { assessmentId: id },
+                });
+
+                if (selectedCriteria.length > 0) {
+                    await tx.assessmentCriteriaResult.createMany({
+                        data: selectedCriteria.map((criteria) => ({
+                            assessmentId: id,
+                            criteriaId: criteria.id,
+                            met: true,
+                        })),
+                    });
+                }
+
+                return tx.assessment.update({
+                    where: { id },
+                    data: {
+                        status: 'COMPLETED',
+                        completedAt: new Date(),
+                        lastModifiedAt: new Date(),
+                    },
+                    include: {
+                        student: true,
+                        evaluator: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                            },
+                        },
+                        score: {
+                            include: {
+                                opiLevel: true,
+                            },
+                        },
+                        criteriaResults: {
+                            include: {
+                                criteria: true,
+                            },
+                        },
+                    },
+                });
+            },
+        );
 
         // Audit log
         await this.auditService.logAssessmentAction(
@@ -444,6 +608,17 @@ export class AssessmentsService {
             assessment.status,
             'COMPLETED',
         );
+
+        if (dto.criteriaIds !== undefined) {
+            await this.auditService.logAssessmentAction(
+                id,
+                'ASSESSMENT_COMPLETE',
+                userId,
+                'criteria_count',
+                undefined,
+                this.normalizeCriteriaIds(dto.criteriaIds).length.toString(),
+            );
+        }
 
         return completed;
     }
@@ -576,6 +751,390 @@ export class AssessmentsService {
     async getOpiLevels() {
         return this.prisma.opiLevel.findMany({
             orderBy: { id: 'asc' },
+            include: {
+                criteria: {
+                    where: { isActive: true },
+                    select: {
+                        id: true,
+                        opiLevelId: true,
+                        description: true,
+                    },
+                    orderBy: { id: 'asc' },
+                },
+            },
         });
+    }
+
+    /**
+     * Submit a class assessment - locks evaluator edits after submission
+     */
+    async submitClassAssessment(classId: number, submitData: { submittedBy: number; notes?: string }) {
+        // Get all assessments for this class
+        const assessments = await this.prisma.assessment.findMany({
+            where: {
+                student: {
+                    classStudents: {
+                        some: { classId },
+                    },
+                },
+            },
+            include: {
+                student: true,
+            },
+        });
+
+        // Check if all assessments are complete
+        const incompleteAssessments = assessments.filter(a => 
+            a.status !== 'COMPLETED' && a.status !== 'ABSENT'
+        );
+
+        if (incompleteAssessments.length > 0) {
+            throw new BadRequestException('Cannot submit class with incomplete assessments');
+        }
+
+        // Update all assessments to mark as submitted
+        const updated = await this.prisma.$transaction(async (tx) => {
+            // Mark all assessments as submitted
+            await tx.assessment.updateMany({
+                where: {
+                    id: { in: assessments.map(a => a.id) },
+                },
+                data: {
+                    submittedAt: new Date(),
+                    lastModifiedAt: new Date(),
+                },
+            });
+
+            // Create class submission record (if we had the table)
+            // TODO: Implement class_submissions table in future milestone
+
+            return assessments;
+        });
+
+        // Audit log per assessment (assessment_audit_log has FK to assessment_id)
+        await this.auditService.logMultipleActions(
+            updated.map((assessment) => ({
+                assessmentId: assessment.id,
+                action: 'CLASS_SUBMITTED',
+                userId: submitData.submittedBy,
+                fieldName: 'status',
+                oldValue: 'pending',
+                newValue: 'submitted',
+            })),
+        );
+
+        return updated;
+    }
+
+    /**
+     * Lock assessment edits after submission
+     */
+    async lockAssessmentEdits(assessmentId: number, userId: number) {
+        const updated = await this.prisma.assessment.update({
+            where: { id: assessmentId },
+            data: {
+                submittedAt: new Date(),
+                lastModifiedAt: new Date(),
+            },
+        });
+
+        // Audit log
+        await this.auditService.logAssessmentAction(
+            assessmentId,
+            'ASSESSMENT_LOCKED',
+            userId,
+            'assessment',
+            'submitted',
+            'submitted',
+        );
+
+        return updated;
+    }
+
+    /**
+     * Validate submission requirements for an assessment
+     */
+    async validateSubmissionRequirements(assessmentId: number) {
+        const assessment = await this.prisma.assessment.findUnique({
+            where: { id: assessmentId },
+            include: {
+                audioRecordings: true,
+                score: true,
+            },
+        });
+
+        if (!assessment) {
+            throw new NotFoundException('Assessment not found');
+        }
+
+        const requirements: string[] = [];
+
+        // Check if assessment is complete
+        if (assessment.status !== 'COMPLETED' && assessment.status !== 'ABSENT') {
+            requirements.push('Assessment must be completed');
+        }
+
+        // Check if audio is required and present
+        if (assessment.status !== 'ABSENT') {
+            const hasAudio = assessment.audioRecordings && assessment.audioRecordings.length > 0;
+            if (!hasAudio) {
+                requirements.push('Audio recording is required');
+            }
+        }
+
+        // Check if score is assigned
+        if (!assessment.score) {
+            requirements.push('OPI level must be assigned');
+        }
+
+        return {
+            canSubmit: requirements.length === 0,
+            requirements,
+        };
+    }
+
+    /**
+     * Flag assessment for review
+     */
+    async flagForReview(assessmentId: number, _reason: string, userId: number) {
+        const updated = await this.prisma.assessment.update({
+            where: { id: assessmentId },
+            data: {
+                needsReview: true,
+                lastModifiedAt: new Date(),
+            },
+        });
+
+        // Audit log
+        await this.auditService.logAssessmentAction(
+            assessmentId,
+            'ASSESSMENT_FLAGGED_FOR_REVIEW',
+            userId,
+            'needs_review',
+            'false',
+            'true',
+        );
+
+        return updated;
+    }
+
+    /**
+     * Re-evaluate a completed assessment (COORDINATOR/ADMIN only).
+     * Updates the score and creates a full audit trail with old/new values.
+     */
+    async reEvaluateAssessment(
+        id: number,
+        dto: ReEvaluateDto,
+        userId: number,
+    ) {
+        const assessment = await this.prisma.assessment.findUnique({
+            where: { id },
+            include: {
+                score: {
+                    include: { opiLevel: true },
+                },
+                criteriaResults: {
+                    include: {
+                        criteria: true,
+                    },
+                },
+            },
+        });
+
+        if (!assessment) {
+            throw new NotFoundException('Assessment not found');
+        }
+
+        if (assessment.status !== 'COMPLETED') {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Only completed assessments can be re-evaluated',
+                error: 'NOT_COMPLETED',
+            });
+        }
+
+        // Capture old values for audit trail
+        const oldOpiLevelId = assessment.score?.opiLevelId;
+        const oldNotes = assessment.score?.notes;
+        const oldOpiDescription = assessment.score?.opiLevel?.description;
+
+        // Fetch new OPI level description
+        const newOpiLevel = await this.prisma.opiLevel.findUnique({
+            where: { id: dto.opiLevelId },
+            include: {
+                criteria: {
+                    where: { isActive: true },
+                    select: {
+                        id: true,
+                        description: true,
+                    },
+                },
+            },
+        });
+
+        if (!newOpiLevel) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Invalid OPI level',
+                error: 'INVALID_OPI_LEVEL',
+            });
+        }
+
+        let selectedCriteria: Array<{ id: number; description: string }> = [];
+
+        // Update score in transaction
+        const updated = await this.prisma.$transaction(async (tx) => {
+            // Upsert score with new value
+            await tx.assessmentScore.upsert({
+                where: { assessmentId: id },
+                create: {
+                    assessmentId: id,
+                    opiLevelId: dto.opiLevelId,
+                    notes: dto.notes ?? null,
+                    updatedBy: userId,
+                },
+                update: {
+                    opiLevelId: dto.opiLevelId,
+                    notes: dto.notes ?? null,
+                    updatedBy: userId,
+                    updatedAt: new Date(),
+                },
+            });
+
+            if (dto.criteriaIds !== undefined) {
+                selectedCriteria = await this.getValidatedCriteriaForLevel(
+                    tx,
+                    dto.opiLevelId,
+                    dto.criteriaIds,
+                );
+
+                await tx.assessmentCriteriaResult.deleteMany({
+                    where: { assessmentId: id },
+                });
+
+                if (selectedCriteria.length > 0) {
+                    await tx.assessmentCriteriaResult.createMany({
+                        data: selectedCriteria.map((criteria) => ({
+                            assessmentId: id,
+                            criteriaId: criteria.id,
+                            met: true,
+                        })),
+                    });
+                }
+            }
+
+            // Clear needs_review flag if set
+            return tx.assessment.update({
+                where: { id },
+                data: {
+                    needsReview: false,
+                    lastModifiedAt: new Date(),
+                },
+                include: {
+                    student: true,
+                    evaluator: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                    score: {
+                        include: {
+                            opiLevel: true,
+                        },
+                    },
+                    criteriaResults: {
+                        include: {
+                            criteria: true,
+                        },
+                    },
+                },
+            });
+            },
+        );
+
+        // Create audit trail entries
+        type AuditEntry = {
+            assessmentId: number;
+            action: import('../audit/audit.service').AuditAction;
+            userId: number;
+            fieldName?: string;
+            oldValue?: string;
+            newValue?: string;
+        };
+
+        const auditEntries: AuditEntry[] = [
+            {
+                assessmentId: id,
+                action: 'ASSESSMENT_RE_EVALUATE',
+                userId,
+                fieldName: 'reason',
+                oldValue: undefined,
+                newValue: dto.reason,
+            },
+        ];
+
+        // Log score change if it actually changed
+        if (oldOpiLevelId !== dto.opiLevelId) {
+            auditEntries.push({
+                assessmentId: id,
+                action: 'SCORE_CHANGE',
+                userId,
+                fieldName: 'opiLevelId',
+                oldValue: oldOpiDescription ?? oldOpiLevelId?.toString(),
+                newValue: newOpiLevel.description,
+            });
+        }
+
+        // Log notes change if applicable
+        if (dto.notes !== undefined && dto.notes !== oldNotes) {
+            auditEntries.push({
+                assessmentId: id,
+                action: 'ASSESSMENT_RE_EVALUATE',
+                userId,
+                fieldName: 'notes',
+                oldValue: oldNotes ?? undefined,
+                newValue: dto.notes,
+            });
+        }
+
+        if (dto.criteriaIds !== undefined) {
+            const oldCriteriaIds = assessment.criteriaResults
+                .filter((result) => result.met)
+                .map((result) => result.criteriaId)
+                .sort((a, b) => a - b);
+
+            const newCriteriaIds = selectedCriteria
+                .map((criteria) => criteria.id)
+                .sort((a, b) => a - b);
+
+            if (oldCriteriaIds.join(',') !== newCriteriaIds.join(',')) {
+                auditEntries.push({
+                    assessmentId: id,
+                    action: 'ASSESSMENT_RE_EVALUATE',
+                    userId,
+                    fieldName: 'criteria_ids',
+                    oldValue: oldCriteriaIds.length > 0 ? oldCriteriaIds.join(',') : 'none',
+                    newValue: newCriteriaIds.length > 0 ? newCriteriaIds.join(',') : 'none',
+                });
+            }
+        }
+
+        // If needs_review was cleared
+        if (assessment.needsReview) {
+            auditEntries.push({
+                assessmentId: id,
+                action: 'REVIEW_RESOLVED',
+                userId,
+                fieldName: 'needs_review',
+                oldValue: 'true',
+                newValue: 'false',
+            });
+        }
+
+        await this.auditService.logMultipleActions(auditEntries);
+
+        return updated;
     }
 }

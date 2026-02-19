@@ -1,47 +1,55 @@
 <template>
   <header class="bg-white border-b border-neutral-200">
-    <div class="container mx-auto px-6 py-4">
+    <div class="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-3">
       <div class="flex items-center justify-between">
         <!-- Logo -->
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center">
           <img 
-            src="../../assets/branding/yukon-logo.svg" 
+            src="../../assets/branding/yukon-logo.png" 
             alt="Yukon" 
-            class="h-8"
+            class="h-7 w-auto"
             @error="handleLogoError"
           />
-          <span class="text-2xl font-bold text-neutral-900">Yukon</span>
         </div>
 
-        <!-- Right side: User menu and hamburger -->
-        <div class="flex items-center space-x-4">
+        <!-- Utility actions -->
+        <div class="flex items-center text-[11px] text-neutral-600">
+          <button
+            v-if="user"
+            class="inline-flex items-center gap-1 hover:text-yukon-navy transition-colors"
+            @click="requestLogout"
+          >
+            <LogOut class="w-3.5 h-3.5" />
+            <span>Log out</span>
+          </button>
+
+          <span v-if="user" class="mx-2 h-3.5 w-px bg-neutral-300"></span>
+
           <!-- User info -->
-          <div v-if="user" class="flex items-center space-x-2 text-sm">
-            <svg class="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span class="text-neutral-700">{{ userDisplayName }}</span>
+          <div v-if="user" class="inline-flex items-center gap-1.5">
+            <User class="w-3.5 h-3.5 text-neutral-500" />
+            <span class="max-w-[180px] truncate text-neutral-700">{{ userDisplayName }}</span>
           </div>
+
+          <span class="mx-2 h-3.5 w-px bg-neutral-300"></span>
 
           <!-- Menu button -->
           <button 
-            class="flex items-center space-x-1 text-sm text-neutral-700 hover:text-neutral-900"
+            class="inline-flex items-center gap-1 hover:text-yukon-navy transition-colors"
             @click="toggleMenu"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <Menu class="w-3.5 h-3.5" />
             <span>Menu</span>
           </button>
         </div>
       </div>
 
       <!-- Wave graphic -->
-      <div class="mt-4">
+      <div class="mt-2 flex justify-end">
         <img 
-          src="../../assets/branding/yukon-waves-header.svg" 
+          src="../../assets/branding/yukon-waves.png" 
           alt="" 
-          class="w-full h-12 object-cover"
+          class="w-full max-w-[420px] h-9 object-contain object-right"
           @error="handleWaveError"
         />
       </div>
@@ -51,6 +59,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { LogOut, Menu, User } from 'lucide-vue-next';
 
 interface Props {
   user?: {
@@ -66,6 +75,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   toggleMenu: [];
+  logout: [];
 }>();
 
 const userDisplayName = computed(() => {
@@ -78,6 +88,10 @@ const userDisplayName = computed(() => {
 
 const toggleMenu = () => {
   emit('toggleMenu');
+};
+
+const requestLogout = () => {
+  emit('logout');
 };
 
 const handleLogoError = (e: Event) => {

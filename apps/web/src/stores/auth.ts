@@ -1,5 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { getAuth0AccessToken, logoutWithAuth0 } from '../auth/auth0';
+import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
+
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:3000/api/v1';
 
 export interface User {
   id: number;
@@ -31,12 +38,43 @@ export const useAuthStore = defineStore('auth', () => {
   const isCoordinator = computed(() => hasRole('COORDINATOR'));
   const isEvaluator = computed(() => hasRole('EVALUATOR'));
 
-  const fetchMe = async () => {
+  const getDefaultRoute = () => {
+    if (hasRole('ADMIN')) {
+      return '/admin/dashboard';
+    }
+    if (hasRole('COORDINATOR')) {
+      return '/coordinator/dashboard';
+    }
+    if (hasRole('EVALUATOR')) {
+      return '/evaluator/dashboard';
+    }
+
+    return '/forbidden';
+  };
+
+  const fetchMe = async (mockUserId?: number) => {
     isLoading.value = true;
     error.value = null;
 
     try {
-      const response = await fetch('/api/v1/me', {
+      const headers: Record<string, string> = {};
+
+      if (isAuth0Mode) {
+        token.value = await getAuth0AccessToken();
+        if (token.value) {
+          headers.Authorization = `Bearer ${token.value}`;
+        }
+      } else {
+        token.value = null;
+      }
+
+      const resolvedMockUserId = mockUserId ?? user.value?.id;
+      if (isMockAuthMode && resolvedMockUserId) {
+        headers['X-Mock-User-Id'] = String(resolvedMockUserId);
+      }
+
+      const response = await fetch(`${API_BASE}/me`, {
+        headers,
         credentials: 'include',
       });
 
@@ -51,6 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = err instanceof Error ? err.message : 'Unknown error';
       user.value = null;
       isAuthenticated.value = false;
+      token.value = null;
       throw err;
     } finally {
       isLoading.value = false;
@@ -61,6 +100,15 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null;
     isAuthenticated.value = false;
     error.value = null;
+    token.value = null;
+
+    if (isAuth0Mode) {
+      logoutWithAuth0({
+        logoutParams: {
+          returnTo: `${window.location.origin}/login`,
+        },
+      });
+    }
   };
 
   return {
@@ -73,8 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
     isEvaluator,
     hasRole,
     hasAnyRole,
+    getDefaultRoute,
     fetchMe,
     logout,
-    token, // Return token for component access
+    token,
   };
 });

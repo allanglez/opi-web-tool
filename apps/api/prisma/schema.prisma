@@ -36,6 +36,9 @@ model User {
   auditLogs              AssessmentAuditLog[]
   scheduledDates         SchoolAssessmentDate[]
   studentModifications   Student[]              @relation("StudentModifier")
+  classSubmissions       ClassSubmission[]
+  flaggedReviews         AssessmentReviewFlag[] @relation("FlaggedBy")
+  resolvedReviews        AssessmentReviewFlag[] @relation("ResolvedBy")
 
   @@index([isActive])
   @@map("users")
@@ -140,6 +143,7 @@ model Class {
   classStudents        ClassStudent[]
   evaluatorAssignments EvaluatorAssignment[]
   classNotes           ClassNote[]
+  classSubmissions     ClassSubmission[]
 
   @@index([cycleId, schoolId])
   @@index([cycleId, isIncluded])
@@ -218,27 +222,30 @@ model SchoolAssessmentDate {
 }
 
 model Assessment {
-  id             Int       @id @default(autoincrement())
-  cycleId        Int       @map("cycle_id")
-  roundId        Int?      @map("round_id")
-  studentId      Int       @map("student_id")
-  evaluatorId    Int?      @map("evaluator_id")
-  status         String    @default("NOT_STARTED") @db.NVarChar(20)
-  needsReview    Boolean   @default(false) @map("needs_review")
-  startedAt      DateTime? @map("started_at") @db.DateTime2
-  completedAt    DateTime? @map("completed_at") @db.DateTime2
-  lastModifiedAt DateTime  @default(now()) @map("last_modified_at") @db.DateTime2
-  submittedAt    DateTime? @map("submitted_at") @db.DateTime2
+  id                 Int       @id @default(autoincrement())
+  cycleId            Int       @map("cycle_id")
+  roundId            Int?      @map("round_id")
+  studentId          Int       @map("student_id")
+  evaluatorId        Int?      @map("evaluator_id")
+  status             String    @default("NOT_STARTED") @db.NVarChar(20)
+  needsReview        Boolean   @default(false) @map("needs_review")
+  startedAt          DateTime? @map("started_at") @db.DateTime2
+  completedAt        DateTime? @map("completed_at") @db.DateTime2
+  lastModifiedAt     DateTime  @default(now()) @map("last_modified_at") @db.DateTime2
+  submittedAt        DateTime? @map("submitted_at") @db.DateTime2
+  classSubmissionId  Int?      @map("class_submission_id")
 
   cycle           AssessmentCycle            @relation(fields: [cycleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   round           AssessmentRound?           @relation(fields: [roundId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   student         Student                    @relation(fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   evaluator       User?                      @relation(fields: [evaluatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classSubmission ClassSubmission?           @relation(fields: [classSubmissionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   score           AssessmentScore?
   notes           AssessmentNote[]
   audioRecordings AudioRecording[]
   auditLogs       AssessmentAuditLog[]
   criteriaResults AssessmentCriteriaResult[]
+  reviewFlags     AssessmentReviewFlag[]
 
   @@unique([cycleId, studentId])
   @@index([cycleId, status])
@@ -377,4 +384,42 @@ model Teacher {
   classes   Class[]
 
   @@map("teachers")
+}
+
+model ClassSubmission {
+  id          Int       @id @default(autoincrement())
+  classId     Int       @map("class_id")
+  submittedBy Int       @map("submitted_by")
+  submittedAt DateTime  @map("submitted_at") @db.DateTime2
+  status      String    @default("SUBMITTED") @db.NVarChar(20)
+  notes       String?   @db.NVarChar(Max)
+
+  class       Class       @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  submitter   User        @relation(fields: [submittedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assessments Assessment[]
+
+  @@index([classId])
+  @@index([submittedBy])
+  @@index([status])
+  @@map("class_submissions")
+}
+
+model AssessmentReviewFlag {
+  id              Int       @id @default(autoincrement())
+  assessmentId    Int       @map("assessment_id")
+  flaggedBy       Int       @map("flagged_by")
+  reason          String?   @db.NVarChar(Max)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime2
+  resolvedAt      DateTime? @map("resolved_at") @db.DateTime2
+  resolvedBy      Int?      @map("resolved_by")
+  resolutionNotes String?   @map("resolution_notes") @db.NVarChar(Max)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  flagger    User       @relation("FlaggedBy", fields: [flaggedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resolver   User?      @relation("ResolvedBy", fields: [resolvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([assessmentId])
+  @@index([flaggedBy])
+  @@index([resolvedAt])
+  @@map("assessment_review_flags")
 }

@@ -1,246 +1,246 @@
 <template>
   <AppShell :user="currentUser">
-    <div class="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-      <div>
-        <h1 class="text-3xl font-bold text-neutral-900 mb-2">Evaluator Assignments</h1>
-        <p class="text-neutral-600">Assign evaluators to included classes for the active cycle.</p>
+    <CoordinatorSubNav />
+
+    <div class="container mx-auto px-6 py-8">
+      <div v-if="isLoading" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900" />
       </div>
-      <div class="flex gap-2">
-        <RouterLink
-          to="/coordinator/dashboard"
-          class="px-4 py-2 rounded-md border border-neutral-300 text-neutral-800 hover:bg-neutral-100"
-        >
-          Dashboard
-        </RouterLink>
-        <RouterLink
-          to="/coordinator/scheduling"
-          class="px-4 py-2 rounded-md bg-yukon-navy text-white hover:bg-yukon-teal"
-        >
-          Scheduling
-        </RouterLink>
+
+      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-red-800">{{ error }}</p>
+        <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchData">Retry</button>
       </div>
-    </div>
 
-    <div v-if="isLoading" class="flex justify-center items-center py-12">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
-    </div>
-
-    <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-      <p class="text-red-800">{{ error }}</p>
-      <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchData">Retry</button>
-    </div>
-
-    <template v-else>
-      <section class="mb-8">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard :value="assignableClasses.length" label="Included Classes" variant="default" />
-          <StatCard :value="assignedCount" label="Assigned" variant="green" />
-          <StatCard :value="unassignedCount" label="Unassigned" variant="yellow" />
-          <StatCard :value="evaluators.length" label="Evaluators" variant="default" />
-        </div>
-      </section>
-
-      <section class="mb-8">
-        <BaseCard>
-          <h3 class="text-lg font-semibold text-neutral-900 mb-4">Create Assignment</h3>
-          <form class="grid grid-cols-1 md:grid-cols-3 gap-4" @submit.prevent="createAssignment">
-            <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">Class</label>
-              <select
-                v-model="newAssignment.classId"
-                class="w-full rounded-md border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              >
-                <option value="">Select a class...</option>
-                <option
-                  v-for="cls in unassignedClasses"
-                  :key="cls.id"
-                  :value="cls.id"
-                >
-                  {{ cls.classCode }} - {{ cls.school?.name }}
-                </option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">Evaluator</label>
-              <select
-                v-model="newAssignment.evaluatorId"
-                class="w-full rounded-md border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              >
-                <option value="">Select an evaluator...</option>
-                <option
-                  v-for="evaluator in evaluators"
-                  :key="evaluator.id"
-                  :value="evaluator.id"
-                >
-                  {{ evaluator.firstName }} {{ evaluator.lastName }}
-                  <template v-if="getWorkloadCount(evaluator.id)">
-                    ({{ getWorkloadCount(evaluator.id) }} classes)
-                  </template>
-                </option>
-              </select>
-            </div>
-            <div class="flex items-end">
-              <button
-                type="submit"
-                :disabled="isCreating"
-                class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {{ isCreating ? 'Assigning...' : 'Assign' }}
-              </button>
-            </div>
-          </form>
-        </BaseCard>
-      </section>
-
-      <section class="mb-8">
-        <BaseCard>
-          <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
-            <div>
-              <h3 class="text-lg font-semibold text-neutral-900">Bulk Assignment</h3>
-              <p class="text-sm text-neutral-600">Select unassigned classes and assign them to one evaluator.</p>
-            </div>
-            <button
-              type="button"
-              class="text-sm text-blue-600 hover:underline"
-              @click="toggleSelectAll"
+      <template v-else>
+        <!-- Header + Stats -->
+        <BaseCard class="mb-6">
+          <h2 class="text-xl font-bold text-neutral-900 mb-4">Class Assignment Management</h2>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <StatCard :value="stats.unassignedClasses" label="Unassigned Classes" variant="red" />
+            <StatCard :value="stats.assignedClasses" label="Assigned Classes" variant="green" />
+            <StatCard :value="stats.inProgressClasses" label="In Progress" variant="default" />
+            <StatCard :value="stats.completedClasses" label="Completed" variant="yellow" />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-neutral-700">Filter by School:</label>
+            <select
+              v-model="selectedSchoolId"
+              class="rounded-md border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+              @change="fetchData"
             >
-              {{ allUnassignedSelected ? 'Unselect All' : 'Select All Unassigned' }}
-            </button>
+              <option value="">All Schools</option>
+              <option v-for="school in schools" :key="school.id" :value="school.id">
+                {{ school.name }}
+              </option>
+            </select>
           </div>
+        </BaseCard>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">Evaluator</label>
-              <select
-                v-model="bulkAssignment.evaluatorId"
-                class="w-full rounded-md border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="">Select an evaluator...</option>
-                <option v-for="evaluator in evaluators" :key="evaluator.id" :value="evaluator.id">
-                  {{ evaluator.firstName }} {{ evaluator.lastName }}
-                </option>
-              </select>
-            </div>
-            <div class="flex items-end">
-              <button
-                type="button"
-                :disabled="isBulkCreating || !bulkAssignment.evaluatorId || selectedClassIds.length === 0"
-                class="w-full px-4 py-2 bg-yukon-teal text-white rounded-md hover:opacity-90 disabled:opacity-50"
-                @click="createBulkAssignments"
-              >
-                {{ isBulkCreating ? 'Assigning...' : `Assign ${selectedClassIds.length} Class(es)` }}
-              </button>
-            </div>
+        <!-- Evaluator Workload -->
+        <BaseCard class="mb-6">
+          <h3 class="text-lg font-bold text-neutral-900 mb-4">Evaluator Workload</h3>
+          <div v-if="evaluatorWorkload.length === 0" class="text-neutral-500 text-sm py-4">
+            No evaluators found.
           </div>
-
-          <div class="max-h-64 overflow-auto border border-neutral-200 rounded-md">
+          <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div
-              v-for="cls in unassignedClasses"
-              :key="cls.id"
-              class="flex items-center gap-3 px-4 py-2 border-b border-neutral-100 last:border-b-0"
+              v-for="ev in evaluatorWorkload"
+              :key="ev.id"
+              class="border border-neutral-200 p-4"
             >
-              <input
-                :id="`class-${cls.id}`"
-                v-model="selectedClassIds"
-                type="checkbox"
-                :value="cls.id"
-                class="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+              <div class="font-semibold text-neutral-900">{{ ev.firstName }} {{ ev.lastName }}</div>
+              <div class="text-xs text-neutral-500 mb-2">{{ ev.email }}</div>
+              <div class="text-sm text-neutral-600 mb-2">
+                Classes: {{ ev.classCount }} | Students: {{ ev.studentCount }}
+              </div>
+              <ProgressBar
+                :percentage="ev.progress"
+                :show-label="false"
+                variant="default"
               />
-              <label :for="`class-${cls.id}`" class="text-sm text-neutral-800 cursor-pointer">
-                {{ cls.classCode }} - {{ cls.school?.name }}
-              </label>
-            </div>
-            <div v-if="unassignedClasses.length === 0" class="px-4 py-6 text-sm text-neutral-500">
-              All included classes are currently assigned.
             </div>
           </div>
         </BaseCard>
-      </section>
 
-      <section>
+        <!-- All Classes Table -->
         <BaseCard>
-          <h3 class="text-lg font-semibold text-neutral-900 mb-4">Current Assignments</h3>
-
-          <div v-if="assignments.length === 0" class="text-center py-8 text-neutral-500">
-            No assignments yet.
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-neutral-900">All Classes</h3>
+            <span class="text-sm text-neutral-500">{{ filteredClasses.length }} classes total</span>
           </div>
 
-          <div v-else class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-neutral-200">
-              <thead>
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Class</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">School</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Evaluator</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Assigned By</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-neutral-200">
-                <tr v-for="assignment in assignments" :key="assignment.id">
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-900">
-                    {{ assignment.class?.classCode }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-600">
-                    {{ assignment.class?.school?.name }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-900">
-                    {{ assignment.evaluator?.firstName }} {{ assignment.evaluator?.lastName }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-600">
-                    {{ assignment.assigner?.firstName }} {{ assignment.assigner?.lastName }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm">
-                    <button
-                      class="text-red-600 hover:text-red-800"
-                      :disabled="deleting === assignment.id"
-                      @click="deleteAssignment(assignment.id)"
-                    >
-                      {{ deleting === assignment.id ? 'Removing...' : 'Remove' }}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-if="filteredClasses.length === 0" class="text-center py-8 text-neutral-500">
+            No classes found.
+          </div>
+
+          <div v-else>
+            <AppDataTable
+              :data="filteredClasses"
+              :columns="classColumns"
+              search-placeholder="Search school, class, teacher, evaluator..."
+              empty-text="No classes found."
+              :initial-page-size="10"
+            >
+              <template #cell-school="{ row }">
+                <div class="text-sm">
+                  <div class="font-medium text-neutral-900">{{ asClassRow(row).school.name }}</div>
+                  <div class="text-xs text-neutral-500">{{ asClassRow(row).school.schoolType }}</div>
+                </div>
+              </template>
+
+              <template #cell-classCode="{ row }">
+                <div class="text-sm">
+                  <div class="font-semibold text-neutral-900">{{ asClassRow(row).classCode }}</div>
+                  <div class="text-xs text-neutral-400">{{ asClassRow(row).school.schoolCode }}-{{ asClassRow(row).classCode }}</div>
+                </div>
+              </template>
+
+              <template #cell-teacher="{ row }">
+                <span class="text-sm text-neutral-700">{{ asClassRow(row).teacher ?? '—' }}</span>
+              </template>
+
+              <template #cell-gradeProgram="{ row }">
+                <div class="text-sm text-neutral-700">
+                  <span v-if="asClassRow(row).grade">Grade {{ asClassRow(row).grade }}</span>
+                  <br v-if="asClassRow(row).grade && asClassRow(row).program" />
+                  <span v-if="asClassRow(row).program" class="text-xs text-neutral-500">{{ asClassRow(row).program }}</span>
+                  <span v-if="!asClassRow(row).grade && !asClassRow(row).program">—</span>
+                </div>
+              </template>
+
+              <template #cell-progress="{ row }">
+                <div class="text-sm">
+                  <div class="font-semibold text-neutral-900">
+                    {{ asClassRow(row).completedStudents }}/{{ asClassRow(row).totalStudents }}
+                  </div>
+                  <div class="text-xs text-neutral-500 mb-1">{{ asClassRow(row).progress }}% complete</div>
+                  <ProgressBar
+                    :percentage="asClassRow(row).progress"
+                    :show-label="false"
+                    :variant="asClassRow(row).progress === 100 ? 'green' : 'default'"
+                    class="w-24"
+                  />
+                </div>
+              </template>
+
+              <template #cell-assessmentDate="{ row }">
+                <span class="text-sm text-neutral-700">{{ asClassRow(row).assessmentDate ?? '—' }}</span>
+              </template>
+
+              <template #cell-evaluators="{ row }">
+                <template v-if="asClassRow(row).evaluators.length > 0">
+                  <span
+                    v-for="ev in asClassRow(row).evaluators"
+                    :key="ev.id"
+                    class="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded mr-1 mb-1"
+                  >
+                    {{ ev.name }}
+                  </span>
+                </template>
+                <span v-else class="text-neutral-400 text-xs italic">None assigned</span>
+              </template>
+
+              <template #cell-actions="{ row }">
+                <button
+                  v-if="asClassRow(row).isAssigned"
+                  class="px-3 py-1 text-xs font-semibold border border-neutral-900 text-neutral-900 hover:bg-neutral-100 uppercase tracking-wider"
+                  @click="openAssignModal(asClassRow(row))"
+                >
+                  Edit
+                </button>
+                <button
+                  v-else
+                  class="px-3 py-1 text-xs font-semibold border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-700 uppercase tracking-wider"
+                  @click="openAssignModal(asClassRow(row))"
+                >
+                  Assign
+                </button>
+              </template>
+            </AppDataTable>
           </div>
         </BaseCard>
-      </section>
-    </template>
+      </template>
+
+      <!-- Assign Evaluator Modal -->
+      <AssignEvaluatorModal
+        v-if="showAssignModal && selectedClass"
+        :class-data="selectedClass"
+        :evaluators="evaluatorWorkload"
+        @close="showAssignModal = false"
+        @saved="onAssignmentSaved"
+      />
+    </div>
   </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
+import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
+import ProgressBar from '../../components/ui/ProgressBar.vue';
+import AssignEvaluatorModal from '../../components/coordinator/AssignEvaluatorModal.vue';
+import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
+import type { DataTableColumn } from '../../components/ui/data-table/types';
 
 const authStore = useAuthStore();
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
-interface AssignableClass {
+interface ClassEvaluator {
+  id: number;
+  name: string;
+  email: string;
+  assignmentId: number;
+}
+
+interface ClassRow {
   id: number;
   classCode: string;
-  school?: { name: string };
+  grade: number | null;
+  school: {
+    id: number;
+    schoolCode: string;
+    name: string;
+    schoolType: string;
+  };
+  teacher: string | null;
+  program: string | null;
+  totalStudents: number;
+  completedStudents: number;
+  inProgressStudents: number;
+  progress: number;
+  assessmentDates: string[];
+  assessmentDate: string | null;
+  evaluators: ClassEvaluator[];
+  isAssigned: boolean;
 }
 
-interface Assignment {
-  id: number;
-  classId: number;
-  evaluatorId: number;
-  class?: { classCode: string; school?: { name: string } };
-  evaluator?: { firstName: string; lastName: string };
-  assigner?: { firstName: string; lastName: string };
-}
-
-interface Evaluator {
+interface EvaluatorWorkload {
   id: number;
   firstName: string;
   lastName: string;
+  email: string;
+  classCount: number;
+  studentCount: number;
+  completedCount: number;
+  progress: number;
+}
+
+interface ManagementResponse {
+  cycle?: { id: number; name: string };
+  stats?: {
+    unassignedClasses: number;
+    assignedClasses: number;
+    inProgressClasses: number;
+    completedClasses: number;
+    totalClasses: number;
+  };
+  evaluatorWorkload?: EvaluatorWorkload[];
+  schools?: Array<{ id: number; name: string }>;
+  classes?: ClassRow[];
 }
 
 const currentUser = computed(() =>
@@ -255,62 +255,97 @@ const currentUser = computed(() =>
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const isCreating = ref(false);
-const isBulkCreating = ref(false);
-const deleting = ref<number | null>(null);
-
-const activeCycle = ref<{ id: number; name: string } | null>(null);
-const assignableClasses = ref<AssignableClass[]>([]);
-const assignments = ref<Assignment[]>([]);
-const evaluators = ref<Evaluator[]>([]);
-const workloadCounts = ref<Array<{ evaluatorId: number; classCount: number }>>([]);
-
-const newAssignment = ref({
-  classId: '',
-  evaluatorId: '',
+const selectedSchoolId = ref<number | ''>('');
+const stats = ref({
+  unassignedClasses: 0,
+  assignedClasses: 0,
+  inProgressClasses: 0,
+  completedClasses: 0,
+  totalClasses: 0,
 });
+const evaluatorWorkload = ref<EvaluatorWorkload[]>([]);
+const schools = ref<Array<{ id: number; name: string }>>([]);
+const classes = ref<ClassRow[]>([]);
 
-const bulkAssignment = ref({
-  evaluatorId: '',
-});
-const selectedClassIds = ref<number[]>([]);
+const classColumns: DataTableColumn<ClassRow>[] = [
+  {
+    key: 'school',
+    header: 'School',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.school.name,
+  },
+  {
+    key: 'classCode',
+    header: 'Class',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.classCode,
+  },
+  {
+    key: 'teacher',
+    header: 'Teacher',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.teacher ?? '—',
+  },
+  {
+    key: 'gradeProgram',
+    header: 'Grade/Program',
+    sortable: true,
+    searchable: true,
+    value: (row) => `Grade ${row.grade ?? 'N/A'} ${row.program ?? ''}`.trim(),
+  },
+  {
+    key: 'progress',
+    header: 'Assessment Progress',
+    sortable: true,
+    searchable: false,
+    value: (row) => row.progress,
+  },
+  {
+    key: 'assessmentDate',
+    header: 'Assessment Date',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.assessmentDate ?? '—',
+  },
+  {
+    key: 'evaluators',
+    header: 'Assigned Evaluators',
+    sortable: false,
+    searchable: true,
+    value: (row) => row.evaluators.map((ev) => ev.name).join(', '),
+  },
+  {
+    key: 'actions',
+    header: 'Actions',
+    sortable: false,
+    searchable: false,
+    value: () => '',
+  },
+];
 
-const assignedClassIds = computed(() => new Set(assignments.value.map((assignment) => assignment.classId)));
-const unassignedClasses = computed(() =>
-  assignableClasses.value.filter((classItem) => !assignedClassIds.value.has(classItem.id)),
-);
+const showAssignModal = ref(false);
+const selectedClass = ref<ClassRow | null>(null);
 
-const assignedCount = computed(() => assignments.value.length);
-const unassignedCount = computed(() => unassignedClasses.value.length);
-const allUnassignedSelected = computed(
-  () =>
-    unassignedClasses.value.length > 0 &&
-    unassignedClasses.value.every((classItem) => selectedClassIds.value.includes(classItem.id)),
-);
-
-function getAuthHeaders() {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (authStore.user?.id) {
-    headers['X-Mock-User-Id'] = String(authStore.user.id);
-  }
-
-  return headers;
+function asClassRow(row: unknown): ClassRow {
+  return row as ClassRow;
 }
 
-function getWorkloadCount(evaluatorId: number) {
-  return workloadCounts.value.find((item) => item.evaluatorId === evaluatorId)?.classCount ?? 0;
+const filteredClasses = computed(() => {
+  if (!selectedSchoolId.value) return classes.value;
+  return classes.value.filter((c) => c.school.id === selectedSchoolId.value);
+});
+
+function openAssignModal(cls: ClassRow) {
+  selectedClass.value = cls;
+  showAssignModal.value = true;
 }
 
-function toggleSelectAll() {
-  if (allUnassignedSelected.value) {
-    selectedClassIds.value = [];
-    return;
-  }
-
-  selectedClassIds.value = unassignedClasses.value.map((classItem) => classItem.id);
+async function onAssignmentSaved() {
+  showAssignModal.value = false;
+  await fetchData();
 }
 
 async function fetchData() {
@@ -318,152 +353,19 @@ async function fetchData() {
   error.value = null;
 
   try {
-    const cycleResponse = await fetch(`${API_BASE}/cycles/active`, {
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    });
-
-    if (!cycleResponse.ok) {
-      throw new Error('Failed to fetch active cycle');
+    const params: Record<string, string> = {};
+    if (selectedSchoolId.value) {
+      params.schoolId = String(selectedSchoolId.value);
     }
-
-    activeCycle.value = await cycleResponse.json();
-
-    if (!activeCycle.value) {
-      throw new Error('No active cycle found');
-    }
-
-    const [classesResponse, assignmentsResponse, evaluatorsResponse, workloadResponse] = await Promise.all([
-      fetch(`${API_BASE}/coordinator/assignments/classes?cycleId=${activeCycle.value.id}`, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      }),
-      fetch(`${API_BASE}/coordinator/assignments?cycleId=${activeCycle.value.id}`, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      }),
-      fetch(`${API_BASE}/coordinator/assignments/evaluators`, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      }),
-      fetch(`${API_BASE}/coordinator/assignments/workload?cycleId=${activeCycle.value.id}`, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      }),
-    ]);
-
-    if (!classesResponse.ok || !assignmentsResponse.ok || !evaluatorsResponse.ok || !workloadResponse.ok) {
-      throw new Error('Failed to fetch assignment data');
-    }
-
-    assignableClasses.value = await classesResponse.json();
-    assignments.value = await assignmentsResponse.json();
-    evaluators.value = await evaluatorsResponse.json();
-    workloadCounts.value = await workloadResponse.json();
-
-    selectedClassIds.value = selectedClassIds.value.filter((id) =>
-      unassignedClasses.value.some((classItem) => classItem.id === id),
-    );
+    const response = await api.get<ManagementResponse>('/coordinator/assignments/management', params);
+    stats.value = response.stats ?? stats.value;
+    evaluatorWorkload.value = response.evaluatorWorkload ?? [];
+    schools.value = response.schools ?? [];
+    classes.value = response.classes ?? [];
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'An error occurred';
   } finally {
     isLoading.value = false;
-  }
-}
-
-async function createAssignment() {
-  if (!newAssignment.value.classId || !newAssignment.value.evaluatorId || !activeCycle.value) {
-    return;
-  }
-
-  isCreating.value = true;
-
-  try {
-    const response = await fetch(`${API_BASE}/coordinator/assignments`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({
-        cycleId: activeCycle.value.id,
-        classId: Number(newAssignment.value.classId),
-        evaluatorId: Number(newAssignment.value.evaluatorId),
-      }),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.message || 'Failed to create assignment');
-    }
-
-    newAssignment.value = { classId: '', evaluatorId: '' };
-    await fetchData();
-  } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to create assignment');
-  } finally {
-    isCreating.value = false;
-  }
-}
-
-async function createBulkAssignments() {
-  if (!activeCycle.value || !bulkAssignment.value.evaluatorId || selectedClassIds.value.length === 0) {
-    return;
-  }
-
-  isBulkCreating.value = true;
-
-  try {
-    const response = await fetch(`${API_BASE}/coordinator/assignments/bulk`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({
-        cycleId: activeCycle.value.id,
-        assignments: selectedClassIds.value.map((classId) => ({
-          classId,
-          evaluatorId: Number(bulkAssignment.value.evaluatorId),
-        })),
-      }),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.message || 'Failed to create bulk assignments');
-    }
-
-    const result = await response.json();
-    selectedClassIds.value = [];
-    alert(`Created ${result.recordsCreated} assignments (${result.recordsSkipped} skipped duplicates).`);
-    await fetchData();
-  } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to create bulk assignments');
-  } finally {
-    isBulkCreating.value = false;
-  }
-}
-
-async function deleteAssignment(id: number) {
-  if (!confirm('Are you sure you want to remove this assignment?')) {
-    return;
-  }
-
-  deleting.value = id;
-
-  try {
-    const response = await fetch(`${API_BASE}/coordinator/assignments/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete assignment');
-    }
-
-    await fetchData();
-  } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to delete assignment');
-  } finally {
-    deleting.value = null;
   }
 }
 

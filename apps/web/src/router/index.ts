@@ -72,6 +72,48 @@ const router = createRouter({
       component: () => import('../pages/admin/cycle/ClassInclusionPage.vue'),
       meta: { roles: ['ADMIN'] },
     },
+    {
+      path: '/admin/data-verification',
+      name: 'admin-data-verification',
+      component: () => import('../pages/admin/DataVerificationPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-user-management',
+      component: () => import('../pages/admin/UserManagementPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/progress-tracking',
+      name: 'admin-progress-tracking',
+      component: () => import('../pages/admin/ProgressTrackingPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/audit-log',
+      name: 'admin-audit-log',
+      component: () => import('../pages/admin/AuditLogPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/reports',
+      name: 'admin-reports',
+      component: () => import('../pages/admin/ReportsExportPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/retention',
+      name: 'admin-retention',
+      component: () => import('../pages/admin/RetentionConfigPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/reset',
+      name: 'admin-reset',
+      component: () => import('../pages/admin/ResetPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
     // Coordinator routes
     {
       path: '/coordinator/dashboard',
@@ -91,11 +133,29 @@ const router = createRouter({
       component: () => import('../pages/coordinator/SchedulingPage.vue'),
       meta: { roles: ['COORDINATOR', 'ADMIN'] },
     },
+    {
+      path: '/coordinator/reports',
+      name: 'coordinator-reports',
+      component: () => import('../pages/coordinator/CoordinatorReportsPage.vue'),
+      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+    },
     // Evaluator routes
     {
       path: '/evaluator/dashboard',
       name: 'evaluator-dashboard',
       component: () => import('../pages/evaluator/EvaluatorDashboardPage.vue'),
+      meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/evaluator/assignments',
+      name: 'evaluator-assignments',
+      component: () => import('../pages/evaluator/MyAssignmentsPage.vue'),
+      meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/evaluator/class-view',
+      name: 'evaluator-class-view',
+      component: () => import('../pages/evaluator/ClassViewPage.vue'),
       meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
     },
     {
@@ -108,6 +168,12 @@ const router = createRouter({
       path: '/evaluator/assessments/:assessmentId',
       name: 'evaluator-assessment-form',
       component: () => import('../pages/evaluator/AssessmentFormPage.vue'),
+      meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/evaluator/classes/:id/summary',
+      name: 'evaluator-class-summary',
+      component: () => import('../pages/evaluator/ClassSummaryPage.vue'),
       meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
     },
   ],

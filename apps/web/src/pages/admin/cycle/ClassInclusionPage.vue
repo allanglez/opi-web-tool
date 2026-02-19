@@ -64,55 +64,52 @@
         No classes found. Import class data first.
       </div>
 
-      <div v-else class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-neutral-50 border-b border-neutral-200">
-            <tr>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">School</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Class Code</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Program</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Grade</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Teacher</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Students</th>
-              <th class="px-4 py-3 text-left text-sm font-semibold text-neutral-700">Included</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-neutral-100">
-            <tr v-for="classItem in classes" :key="classItem.id" class="hover:bg-neutral-50">
-              <td class="px-4 py-3 text-sm text-neutral-900">
-                {{ classItem.school.name }}
-              </td>
-              <td class="px-4 py-3 text-sm font-medium text-neutral-900">
-                {{ classItem.classCode }}
-              </td>
-              <td class="px-4 py-3 text-sm text-neutral-600">
-                {{ classItem.program?.name || 'N/A' }}
-              </td>
-              <td class="px-4 py-3 text-sm text-neutral-600">
-                {{ classItem.grade || 'N/A' }}
-              </td>
-              <td class="px-4 py-3 text-sm text-neutral-600">
-                {{ classItem.teacher || 'N/A' }}
-              </td>
-              <td class="px-4 py-3 text-sm text-neutral-600">
-                {{ classItem._count.classStudents }}
-              </td>
-              <td class="px-4 py-3 text-sm">
-                <button
-                  :disabled="updatingClassIds.has(classItem.id)"
-                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  :class="classItem.isIncluded ? 'bg-green-600' : 'bg-neutral-300'"
-                  @click="toggleInclusion(classItem)"
-                >
-                  <span
-                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                    :class="classItem.isIncluded ? 'translate-x-6' : 'translate-x-1'"
-                  />
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <AppDataTable
+          :data="classes"
+          :columns="classColumns"
+          search-placeholder="Search school, class, program, teacher..."
+          empty-text="No classes found."
+          :initial-page-size="10"
+        >
+          <template #cell-school="{ row }">
+            <span class="text-sm text-neutral-900">{{ asClassItem(row).school.name }}</span>
+          </template>
+
+          <template #cell-classCode="{ row }">
+            <span class="text-sm font-medium text-neutral-900">{{ asClassItem(row).classCode }}</span>
+          </template>
+
+          <template #cell-program="{ row }">
+            <span class="text-sm text-neutral-600">{{ asClassItem(row).program?.name || 'N/A' }}</span>
+          </template>
+
+          <template #cell-grade="{ row }">
+            <span class="text-sm text-neutral-600">{{ asClassItem(row).grade || 'N/A' }}</span>
+          </template>
+
+          <template #cell-teacher="{ row }">
+            <span class="text-sm text-neutral-600">{{ asClassItem(row).teacher || 'N/A' }}</span>
+          </template>
+
+          <template #cell-students="{ row }">
+            <span class="text-sm text-neutral-600">{{ asClassItem(row)._count.classStudents }}</span>
+          </template>
+
+          <template #cell-included="{ row }">
+            <button
+              :disabled="updatingClassIds.has(asClassItem(row).id)"
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              :class="asClassItem(row).isIncluded ? 'bg-green-600' : 'bg-neutral-300'"
+              @click="toggleInclusion(asClassItem(row))"
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="asClassItem(row).isIncluded ? 'translate-x-6' : 'translate-x-1'"
+              />
+            </button>
+          </template>
+        </AppDataTable>
       </div>
     </BaseCard>
 
@@ -129,6 +126,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../../stores/auth';
 import AppShell from '../../../components/layout/AppShell.vue';
 import BaseCard from '../../../components/ui/BaseCard.vue';
+import AppDataTable from '../../../components/ui/data-table/AppDataTable.vue';
+import type { DataTableColumn } from '../../../components/ui/data-table/types';
 
 const authStore = useAuthStore();
 
@@ -172,6 +171,62 @@ const activeCycle = ref<Cycle | null>(null);
 const updatingClassIds = ref(new Set<number>());
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+
+const classColumns: DataTableColumn<Class>[] = [
+  {
+    key: 'school',
+    header: 'School',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.school.name,
+  },
+  {
+    key: 'classCode',
+    header: 'Class Code',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.classCode,
+  },
+  {
+    key: 'program',
+    header: 'Program',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.program?.name || 'N/A',
+  },
+  {
+    key: 'grade',
+    header: 'Grade',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.grade || 'N/A',
+  },
+  {
+    key: 'teacher',
+    header: 'Teacher',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.teacher || 'N/A',
+  },
+  {
+    key: 'students',
+    header: 'Students',
+    sortable: true,
+    searchable: false,
+    value: (row) => row._count.classStudents,
+  },
+  {
+    key: 'included',
+    header: 'Included',
+    sortable: true,
+    searchable: true,
+    value: (row) => (row.isIncluded ? 'Included' : 'Excluded'),
+  },
+];
+
+function asClassItem(row: unknown): Class {
+  return row as Class;
+}
 
 const filters = ref({
   cycleId: '',

@@ -1,8 +1,13 @@
 import { useAuthStore } from '../stores/auth';
+import { getAuth0AccessToken } from '../auth/auth0';
+import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:3000/api/v1';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;
@@ -18,13 +23,31 @@ export interface PaginatedResponse<T> {
   };
 }
 
-function getAuthHeaders(): Record<string, string> {
+async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
   const authStore = useAuthStore();
-  if (authStore.user?.id) {
+
+  if (isAuth0Mode) {
+    let token = authStore.token;
+
+    if (!token) {
+      try {
+        token = await getAuth0AccessToken();
+        authStore.token = token;
+      } catch {
+        token = null;
+      }
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  if (isMockAuthMode && authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
 
@@ -46,7 +69,7 @@ export class ApiClient {
     const config: RequestInit = {
       ...options,
       headers: {
-        ...getAuthHeaders(),
+        ...(await getAuthHeaders()),
         ...options.headers,
       },
       credentials: 'include',
@@ -68,34 +91,39 @@ export class ApiClient {
     return response.text() as unknown as T;
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-    const url = new URL(`${this.baseUrl}${endpoint}`);
+  async get<T>(endpoint: string, params?: Record<string, unknown>): Promise<T> {
+    let queryString = '';
     if (params) {
+      const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          url.searchParams.append(key, String(value));
+          searchParams.append(key, String(value));
         }
       });
+      const qs = searchParams.toString();
+      if (qs) {
+        queryString = `${endpoint.includes('?') ? '&' : '?'}${qs}`;
+      }
     }
 
-    return this.request<T>(url.pathname + url.search);
+    return this.request<T>(endpoint + queryString);
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<T> {
+  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
@@ -114,9 +142,9 @@ export const apiClient = new ApiClient();
 
 // Export convenience methods for common operations
 export const api = {
-  get: <T>(endpoint: string, params?: Record<string, any>) => apiClient.get<T>(endpoint, params),
-  post: <T>(endpoint: string, data?: any) => apiClient.post<T>(endpoint, data),
-  put: <T>(endpoint: string, data?: any) => apiClient.put<T>(endpoint, data),
-  patch: <T>(endpoint: string, data?: any) => apiClient.patch<T>(endpoint, data),
+  get: <T>(endpoint: string, params?: Record<string, unknown>) => apiClient.get<T>(endpoint, params),
+  post: <T>(endpoint: string, data?: unknown) => apiClient.post<T>(endpoint, data),
+  put: <T>(endpoint: string, data?: unknown) => apiClient.put<T>(endpoint, data),
+  patch: <T>(endpoint: string, data?: unknown) => apiClient.patch<T>(endpoint, data),
   delete: <T>(endpoint: string) => apiClient.delete<T>(endpoint),
 };

@@ -1,150 +1,178 @@
 <template>
   <AppShell :user="currentUser">
-    <!-- Page Title -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-neutral-900 mb-2">Administrator Dashboard</h1>
-      <p class="text-neutral-600">Welcome to the administrator workspace. Here you can manage system settings, users, and access controls.</p>
-    </div>
+    <AdminSubNav />
 
-    <!-- System Overview Stats -->
-    <section class="mb-8">
-      <h2 class="text-xl font-semibold text-neutral-900 mb-4">System Overview</h2>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard :value="31" label="Total Students" variant="default" />
-        <StatCard :value="8" label="Completed" variant="green" />
-        <StatCard :value="1" label="In Progress" variant="yellow" />
-        <StatCard :value="22" label="Not Started" variant="red" />
+    <!-- Loading State -->
+    <LoadingState v-if="isLoading" />
+
+    <!-- Error State -->
+    <ErrorState v-else-if="error" :message="error" @retry="fetchDashboard" />
+
+    <template v-else>
+      <!-- System Overview -->
+      <BaseCard class="mt-8 mb-8">
+        <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wide mb-4">System Overview</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <StatCard :value="stats.systemOverview.totalStudents" label="Total Students" variant="default" />
+          <StatCard :value="stats.systemOverview.completed" label="Completed" variant="green" />
+          <StatCard :value="stats.systemOverview.inProgress" label="In Progress" variant="yellow" />
+          <StatCard :value="stats.systemOverview.notStarted" label="Not Started" variant="red" />
+        </div>
+        <ProgressBar :percentage="stats.systemOverview.overallProgress" label="Overall Progress" variant="green" />
+      </BaseCard>
+
+      <!-- Two Column Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-start gap-6 mb-8">
+        <!-- Schools by Completion Rate -->
+        <BaseCard class="flex flex-col lg:min-h-[38rem] lg:max-h-[38rem]">
+          <h3 class="text-lg font-bold text-neutral-900 uppercase tracking-wide mb-4">Schools by Completion Rate</h3>
+          <div class="space-y-4 lg:max-h-[30rem] lg:overflow-y-auto lg:pr-1">
+            <div v-for="school in stats.schoolsCompletion" :key="school.name" class="border border-neutral-200 rounded p-3">
+              <div class="flex justify-between items-center mb-1">
+                <div>
+                  <div class="font-semibold text-neutral-900">{{ school.name }}</div>
+                  <div class="text-xs text-neutral-500">{{ school.stats }}</div>
+                </div>
+                <div class="text-sm font-semibold text-neutral-900">{{ school.completion }}%</div>
+              </div>
+              <ProgressBar 
+                :percentage="school.completion" 
+                :show-label="false"
+                :variant="getProgressVariant(school.completion)"
+              />
+            </div>
+            <EmptyState v-if="stats.schoolsCompletion.length === 0" title="No schools" message="No schools with students found in the active cycle." />
+          </div>
+        </BaseCard>
+
+        <!-- Evaluator Workload -->
+        <BaseCard class="flex flex-col lg:min-h-[38rem] lg:max-h-[38rem]">
+          <h3 class="text-lg font-bold text-neutral-900 uppercase tracking-wide mb-4">Evaluator Workload</h3>
+          <div class="space-y-4 lg:max-h-[30rem] lg:overflow-y-auto lg:pr-1">
+            <div v-for="evaluator in stats.evaluatorWorkload" :key="evaluator.name" class="border border-neutral-200 rounded p-3">
+              <div class="flex justify-between items-center mb-1">
+                <div class="font-semibold text-neutral-900">{{ evaluator.name }}</div>
+                <div class="text-sm font-semibold text-neutral-900">{{ evaluator.completed }}/{{ evaluator.total }}</div>
+              </div>
+              <ProgressBar
+                :percentage="evaluator.total > 0 ? Math.round((evaluator.completed / evaluator.total) * 100) : 0"
+                :show-label="false"
+                :variant="getProgressVariant(evaluator.total > 0 ? Math.round((evaluator.completed / evaluator.total) * 100) : 0)"
+              />
+            </div>
+            <EmptyState v-if="stats.evaluatorWorkload.length === 0" title="No evaluators" message="No evaluators with assignments found in the active cycle." />
+          </div>
+        </BaseCard>
       </div>
-    </section>
 
-    <!-- Overall Progress -->
-    <section class="mb-8">
+      <!-- Recent Activity -->
       <BaseCard>
-        <h3 class="text-lg font-semibold text-neutral-900 mb-4">Overall Progress</h3>
-        <ProgressBar :percentage="26" label="Overall Progress" variant="green" />
-      </BaseCard>
-    </section>
-
-    <!-- Two Column Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      <!-- Schools by Completion Rate -->
-      <BaseCard>
-        <h3 class="text-lg font-semibold text-neutral-900 mb-4">Schools by Completion Rate</h3>
-        <div class="space-y-4">
-          <div v-for="school in schools" :key="school.name" class="border-b border-neutral-100 last:border-0 pb-3 last:pb-0">
-            <div class="flex justify-between items-center mb-2">
-              <div>
-                <div class="font-medium text-neutral-900">{{ school.name }}</div>
-                <div class="text-xs text-neutral-500">{{ school.stats }}</div>
-              </div>
-              <div class="text-sm font-semibold text-neutral-900">{{ school.completion }}%</div>
-            </div>
-            <ProgressBar 
-              :percentage="school.completion" 
-              :show-label="false"
-              :variant="getProgressVariant(school.completion)"
-            />
-          </div>
-        </div>
-      </BaseCard>
-
-      <!-- Evaluator Workload -->
-      <BaseCard>
-        <h3 class="text-lg font-semibold text-neutral-900 mb-4">Evaluator Workload</h3>
-        <div class="space-y-4">
-          <div v-for="evaluator in evaluators" :key="evaluator.name" class="border-b border-neutral-100 last:border-0 pb-3 last:pb-0">
-            <div class="font-medium text-neutral-900 mb-2">{{ evaluator.name }}</div>
-            <div class="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <div class="text-neutral-500 text-xs">Students Assigned</div>
-                <div class="font-semibold text-neutral-900">{{ evaluator.assigned }}</div>
-              </div>
-              <div>
-                <div class="text-neutral-500 text-xs">Total Classes</div>
-                <div class="font-semibold text-neutral-900">{{ evaluator.classes }}</div>
-              </div>
-              <div>
-                <div class="text-neutral-500 text-xs">Total Schools</div>
-                <div class="font-semibold text-neutral-900">{{ evaluator.schools }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </BaseCard>
-    </div>
-
-    <!-- Recent Activity -->
-    <section>
-      <BaseCard>
-        <h3 class="text-lg font-semibold text-neutral-900 mb-4">Recent Activity</h3>
-        <div class="space-y-3">
+        <h3 class="text-lg font-bold text-neutral-900 uppercase tracking-wide mb-4">Recent Activity</h3>
+        <div class="space-y-0">
           <div 
-            v-for="activity in recentActivity" 
+            v-for="activity in stats.recentActivity" 
             :key="activity.id"
-            class="flex justify-between items-center py-2 border-b border-neutral-100 last:border-0"
+            class="flex justify-between items-center py-3 border-b border-neutral-100 last:border-0"
           >
             <div class="flex-1">
               <span class="font-medium text-neutral-900">{{ activity.name }}</span>
-              <span class="text-neutral-600"> - {{ activity.school }}</span>
+              <span class="text-neutral-500"> - {{ activity.school }}</span>
             </div>
-            <div class="text-sm text-neutral-500">{{ activity.timestamp }}</div>
+            <div class="text-sm text-neutral-500 font-mono">{{ activity.timestamp }}</div>
           </div>
+          <EmptyState v-if="stats.recentActivity.length === 0" title="No activity" message="No recent assessment activity found." />
         </div>
       </BaseCard>
-    </section>
+    </template>
   </AppShell>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
+import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';
+import LoadingState from '../../components/ui/LoadingState.vue';
+import ErrorState from '../../components/ui/ErrorState.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 
+const API_BASE = '/api/v1';
 const authStore = useAuthStore();
 
-// Use authenticated user from store
 const currentUser = computed(() => authStore.user ? {
   firstName: authStore.user.firstName,
   lastName: authStore.user.lastName,
   email: authStore.user.email,
 } : null);
 
-// Mock schools data
-const schools = ref([
-  { name: 'Whitehorse Elementary', stats: 'Grade K-6 | 8 classes | 120 students', completion: 100 },
-  { name: 'Jack Hulland Elementary', stats: 'Grade K-6 | 6 classes | 95 students', completion: 100 },
-  { name: 'Vanier Catholic Secondary', stats: 'Grade 7-12 | 14 classes | 280 students', completion: 33 },
-  { name: 'F.H. Collins Secondary', stats: 'Grade 7-12 | 16 classes | 320 students', completion: 25 },
-  { name: 'Porter Creek Secondary', stats: 'Grade 7-12 | 12 classes | 240 students', completion: 0 },
-  { name: 'Golden Horn Elementary', stats: 'Grade K-6 | 5 classes | 75 students', completion: 0 },
-  { name: 'École Émilie-Tremblay', stats: 'Grade K-12 | 8 classes | 140 students', completion: 0 },
-]);
+interface DashboardStats {
+  systemOverview: {
+    totalStudents: number;
+    completed: number;
+    inProgress: number;
+    notStarted: number;
+    overallProgress: number;
+  };
+  schoolsCompletion: Array<{
+    name: string;
+    stats: string;
+    completion: number;
+  }>;
+  evaluatorWorkload: Array<{
+    name: string;
+    completed: number;
+    total: number;
+  }>;
+  recentActivity: Array<{
+    id: number;
+    name: string;
+    school: string;
+    timestamp: string;
+  }>;
+}
 
-// Mock evaluators data
-const evaluators = ref([
-  { name: 'Marie Dubois', assigned: 5, classes: 4, schools: 2 },
-  { name: 'Pierre Gagnon', assigned: 2, classes: 1, schools: 1 },
-  { name: 'Sylvie Tremblay', assigned: 1, classes: 2, schools: 1 },
-]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+const stats = ref<DashboardStats>({
+  systemOverview: { totalStudents: 0, completed: 0, inProgress: 0, notStarted: 0, overallProgress: 0 },
+  schoolsCompletion: [],
+  evaluatorWorkload: [],
+  recentActivity: [],
+});
 
-// Mock recent activity
-const recentActivity = ref([
-  { id: 1, name: 'Sophie Hebert', school: 'F.H. Collins Secondary', timestamp: 'Score: 12 | 2026-01-08, 04:26:01 PM' },
-  { id: 2, name: 'Marc Cormier', school: 'F.H. Collins Secondary', timestamp: 'Score: 17 | 11:45 AM' },
-  { id: 3, name: 'Emma Fortin', school: 'Whitehorse Elementary', timestamp: 'Score: 10 | 02:22 PM' },
-  { id: 4, name: 'Lucas Gagnon', school: 'Whitehorse Elementary', timestamp: 'Score: 15 | 02:45 PM' },
-  { id: 5, name: 'Chloe Harvey', school: 'Whitehorse Elementary', timestamp: 'Score: 16 | 03:11 PM' },
-  { id: 6, name: 'Thomas Lacombe', school: 'Jack Hulland Elementary', timestamp: 'Score: 18 | 08:30 AM' },
-  { id: 7, name: 'Sophie Mercier', school: 'Jack Hulland Elementary', timestamp: 'Score: 17 | 10:00 AM' },
-  { id: 8, name: 'Alexandre Nadeau', school: 'Vanier Catholic Secondary', timestamp: 'Score: 14 | 01:20 PM' },
-]);
+function getAuthHeaders() {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authStore.user?.id) {
+    headers['X-Mock-User-Id'] = String(authStore.user.id);
+  }
+  return headers;
+}
+
+async function fetchDashboard() {
+  isLoading.value = true;
+  error.value = null;
+  try {
+    const response = await fetch(`${API_BASE}/admin/dashboard/stats`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to load dashboard data');
+    stats.value = await response.json();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Unknown error';
+  } finally {
+    isLoading.value = false;
+  }
+}
 
 const getProgressVariant = (percentage: number): 'green' | 'yellow' | 'red' => {
   if (percentage >= 75) return 'green';
   if (percentage >= 25) return 'yellow';
   return 'red';
 };
+
+onMounted(fetchDashboard);
 </script>

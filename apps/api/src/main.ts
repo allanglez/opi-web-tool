@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
+import multipart from '@fastify/multipart';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -8,6 +9,13 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter({ logger: true }),
   );
+
+  await app.register(multipart, {
+    limits: {
+      fileSize: parseInt(process.env.MAX_AUDIO_MB || '50', 10) * 1024 * 1024,
+      files: 1,
+    },
+  });
 
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(

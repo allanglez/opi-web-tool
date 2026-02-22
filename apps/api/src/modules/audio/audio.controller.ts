@@ -3,30 +3,37 @@ import {
   Post,
   Get,
   Param,
-  UploadedFile,
-  UseInterceptors,
   BadRequestException,
   Res,
-  NotFoundException,
+  Req,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { AudioService } from './audio.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-@Controller('api/v1/assessments/:assessmentId/audio')
+@Controller('assessments/:assessmentId/audio')
 export class AudioController {
   constructor(private readonly audioService: AudioService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
   async uploadAudio(
     @Param('assessmentId') assessmentId: string,
-    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
     @CurrentUser() user: { id: number },
+    @Req() req: FastifyRequest,
   ) {
-    if (!file) {
+    const data = await req.file();
+    
+    if (!data) {
       throw new BadRequestException('No file uploaded');
     }
+
+    const buffer = await data.toBuffer();
+    const file = {
+      buffer,
+      originalname: data.filename,
+      mimetype: data.mimetype,
+      size: buffer.length,
+    };
 
     return this.audioService.uploadAudio(
       parseInt(assessmentId, 10),
@@ -48,29 +55,23 @@ export class AudioController {
 
   @Get(':storageKey/download')
   async downloadAudio(
+    @Param('assessmentId') assessmentId: string,
     @Param('storageKey') storageKey: string,
-    @Res() res: any,
+    @CurrentUser() user: { id: number },
+    @Res({ passthrough: false }) res: FastifyReply,
   ) {
-    try {
-      // For local storage, we need to serve the file
-      const fs = require('fs');
-      const path = require('path');
-      const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
-      const filePath = path.join(uploadDir, storageKey);
+    const data = await this.audioService.getAudioDownloadData(
+      parseInt(assessmentId, 10),
+      storageKey,
+      user.id,
+    );
 
-      if (!fs.existsSync(filePath)) {
-        throw new NotFoundException('Audio file not found');
-      }
-
-      const stat = fs.statSync(filePath);
-      res.setHeader('Content-Length', stat.size);
-      res.setHeader('Content-Type', 'audio/webm');
-      res.setHeader('Content-Disposition', `attachment; filename="${storageKey}"`);
-      
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
-    } catch (error) {
-      throw new NotFoundException('Audio file not found');
+    if (data.sizeBytes) {
+      res.header('Content-Length', data.sizeBytes);
     }
+    res.header('Content-Type', data.mimeType);
+    res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(data.fileName)}"`);
+
+    return res.send(data.stream);
   }
 }

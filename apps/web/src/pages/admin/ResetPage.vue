@@ -73,7 +73,7 @@
           <div class="flex items-center gap-3 mb-4">
             <span
               :class="statusBadgeClass"
-              class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+              class="inline-flex items-center px-3 py-1 rounded text-sm font-bold"
             >
               <span v-if="resetStatus.status === 'exporting' || resetStatus.status === 'purging'" class="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full"></span>
               {{ statusLabel }}

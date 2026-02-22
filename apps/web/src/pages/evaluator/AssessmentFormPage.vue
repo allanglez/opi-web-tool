@@ -1,5 +1,8 @@
 <template>
   <AppShell :user="currentUser">
+    <!-- Admin nav when coming from data verification -->
+    <AdminSubNav v-if="isAdminView" />
+
     <!-- Loading State -->
     <div v-if="isLoading" class="flex justify-center items-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
@@ -27,7 +30,18 @@
     </div>
 
     <template v-else-if="assessment">
-      <section v-if="assessment.status === 'COMPLETED' && canReEvaluate" class="mt-6 mb-4">
+      <!-- Re-evaluation Mode Banner (admin/coordinator on completed assessment) -->
+      <div v-if="isAdminView && assessment.status === 'COMPLETED'" class="mt-6 mb-4 border border-yellow-300 bg-yellow-50 rounded-lg px-5 py-4 flex items-start gap-3">
+        <AlertTriangle class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p class="text-sm font-bold text-yellow-900">Re-evaluation Mode</p>
+          <p class="text-xs text-yellow-800 mt-0.5">
+            This assessment has been completed. Any changes will be recorded as a re-evaluation in the history log.
+          </p>
+        </div>
+      </div>
+      <!-- Standard re-eval banner for non-admin coordinator -->
+      <section v-else-if="assessment.status === 'COMPLETED' && canReEvaluate" class="mt-6 mb-4">
         <BaseCard>
           <div class="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3">
             <p class="text-sm font-semibold text-yellow-900">Re-evaluation Mode</p>
@@ -38,8 +52,19 @@
         </BaseCard>
       </section>
 
+      <!-- TOP BACK LINK -->
+      <div class="mt-4 mb-2">
+        <router-link
+          :to="backUrl"
+          class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-800 transition-colors"
+        >
+          <ArrowLeft class="w-3.5 h-3.5" />
+          {{ backLabel }}
+        </router-link>
+      </div>
+
       <!-- STUDENT CONTEXT HEADER -->
-      <section class="mt-6 mb-6">
+      <section class="mt-2 mb-6">
         <BaseCard>
           <div class="flex justify-between items-start">
             <div>
@@ -70,7 +95,7 @@
               </dl>
             </div>
             <span
-              class="px-3 py-1 text-xs font-medium rounded-full"
+              class="px-3 py-1 text-xs font-bold rounded"
               :class="statusClass"
             >
               {{ assessment.status.replace('_', ' ') }}
@@ -88,12 +113,12 @@
               v-for="level in opiLevels"
               :key="level.id"
               type="button"
-              :disabled="assessment.status === 'COMPLETED'"
+              :disabled="!isAdminView && assessment.status === 'COMPLETED'"
               class="px-4 py-3 text-sm font-medium rounded-lg border-2 transition-colors text-center"
-              :class="form.opiLevelId === level.id
-                ? 'border-neutral-900 bg-neutral-100 text-neutral-900 font-bold'
-                : 'border-neutral-200 hover:border-neutral-400 text-neutral-700'"
-              @click="form.opiLevelId = level.id"
+              :class="activeOpiLevelId === level.id
+                ? 'border-[#0f3f52] bg-[#0f3f52] text-white font-bold'
+                : 'border-neutral-200 hover:border-neutral-400 text-neutral-700 disabled:opacity-60 disabled:cursor-default'"
+              @click="setActiveOpiLevel(level.id)"
             >
               {{ level.id }}
             </button>
@@ -101,29 +126,29 @@
 
           <div class="mt-6 border-t border-neutral-200 pt-4">
             <h3 class="text-base font-semibold text-neutral-800 mb-3">
-              Assessment Criteria for Level {{ form.opiLevelId ?? '-' }}:
+              Assessment Criteria for Level {{ activeOpiLevelId ?? '-' }}:
             </h3>
 
-            <p v-if="!form.opiLevelId" class="text-sm text-neutral-500">
+            <p v-if="!activeOpiLevelId" class="text-sm text-neutral-500">
               Select an OPI level to view and choose criteria.
             </p>
 
-            <p v-else-if="selectedLevelCriteria.length === 0" class="text-sm text-neutral-500">
+            <p v-else-if="activeLevelCriteria.length === 0" class="text-sm text-neutral-500">
               No active criteria configured for this level.
             </p>
 
             <div v-else class="grid gap-2 sm:grid-cols-2">
               <label
-                v-for="criteria in selectedLevelCriteria"
+                v-for="criteria in activeLevelCriteria"
                 :key="criteria.id"
-                class="flex items-start gap-2 text-sm text-neutral-700"
+                class="flex items-start gap-2 text-sm text-neutral-700 cursor-pointer"
               >
                 <input
                   type="checkbox"
                   class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
-                  :checked="form.criteriaIds.includes(criteria.id)"
-                  :disabled="assessment.status === 'COMPLETED'"
-                  @change="toggleCriteria('form', criteria.id)"
+                  :checked="activeCriteriaIds.includes(criteria.id)"
+                  :disabled="!isAdminView && assessment.status === 'COMPLETED'"
+                  @change="toggleActiveCriteria(criteria.id)"
                 />
                 <span>{{ criteria.description }}</span>
               </label>
@@ -166,7 +191,7 @@
                 Select File
                 <input
                   type="file"
-                  accept="audio/*"
+                  accept="audio/mpeg,.mp3"
                   class="hidden"
                   @change="handleFileUpload"
                 />
@@ -182,21 +207,43 @@
           <!-- Uploaded Recordings -->
           <div v-if="audioRecordings.length > 0" class="mt-4">
             <h4 class="text-sm font-bold text-neutral-700 uppercase tracking-wider mb-3">Uploaded Recordings</h4>
-            <div class="space-y-2">
-              <div v-for="recording in audioRecordings" :key="recording.id" class="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                <div>
-                  <p class="text-sm font-medium text-neutral-900">{{ recording.fileName }}</p>
-                  <p class="text-xs text-neutral-500">
-                    Uploaded by {{ recording.uploader.firstName }} {{ recording.uploader.lastName }} &middot; {{ formatFileSize(recording.fileSizeBytes) }}
-                  </p>
+            <div class="space-y-3">
+              <div v-for="recording in audioRecordings" :key="recording.id" class="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
+                <div class="flex items-center justify-between mb-3">
+                  <div>
+                    <p class="text-sm font-medium text-neutral-900">{{ recording.fileName }}</p>
+                    <p class="text-xs text-neutral-500">
+                      Uploaded by {{ recording.uploader.firstName }} {{ recording.uploader.lastName }} &middot; {{ formatFileSize(recording.fileSizeBytes) }}
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="text-xs font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded px-3 py-1"
+                      :disabled="recordingLoading[recording.id]"
+                      @click="playRecording(recording)"
+                    >
+                      {{ recordingLoading[recording.id] ? 'Loading...' : 'Play' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="text-xs font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 rounded px-3 py-1"
+                      :disabled="recordingLoading[recording.id]"
+                      @click="downloadRecording(recording)"
+                    >
+                      Download
+                    </button>
+                  </div>
                 </div>
-                <a
-                  :href="recording.downloadUrl"
-                  download
-                  class="text-xs font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 rounded px-3 py-1"
+                <audio
+                  :id="`audio-player-${recording.id}`"
+                  :src="getPlaybackUrl(recording)"
+                  controls
+                  class="w-full h-10"
+                  preload="metadata"
                 >
-                  Download
-                </a>
+                  Your browser does not support the audio element.
+                </audio>
               </div>
             </div>
           </div>
@@ -208,28 +255,90 @@
         <BaseCard>
           <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wider mb-4">Additional Notes</h2>
           <textarea
-            v-model="form.notes"
-            :disabled="assessment.status === 'COMPLETED'"
+            v-model="activeNotes"
+            :disabled="!isAdminView && assessment.status === 'COMPLETED'"
             rows="5"
             class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 disabled:bg-neutral-50 resize-y"
             placeholder="Enter any additional observations, comments, or notes about the student's performance..."
           ></textarea>
+
+          <!-- Re-evaluation Required checkbox (admin view only) -->
+          <div v-if="isAdminView" class="mt-4 pt-4 border-t border-neutral-200">
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input
+                v-model="reEvalForm.flagForReview"
+                type="checkbox"
+                class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+              />
+              <div>
+                <span class="text-sm font-semibold text-neutral-800">Re-evaluation Required?</span>
+                <p class="text-xs text-neutral-500 mt-0.5">Check this box if this assessment requires a future re-evaluation</p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Reason for re-evaluation (admin view, required) -->
+          <div v-if="isAdminView" class="mt-4">
+            <label class="block text-sm font-semibold text-neutral-700 mb-1">
+              Reason for Change <span class="text-red-500">*</span>
+            </label>
+            <textarea
+              v-model="reEvalForm.reason"
+              rows="2"
+              class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 resize-y"
+              placeholder="Explain why the score is being changed..."
+            ></textarea>
+          </div>
         </BaseCard>
       </section>
 
-      <!-- Completed View -->
-      <div v-if="assessment.status === 'COMPLETED'" class="mb-6">
+      <!-- Completion Details Card (admin view) -->
+      <BaseCard v-if="isAdminView && assessment.status === 'COMPLETED'" class="mb-6">
+        <h3 class="text-base font-bold text-neutral-900 mb-3">Completion Details</h3>
+        <div class="space-y-1 text-sm">
+          <div class="flex gap-2">
+            <span class="text-neutral-600">Completed by:</span>
+            <span class="font-semibold text-green-700">
+              {{ assessment.evaluator ? `${assessment.evaluator.firstName} ${assessment.evaluator.lastName}` : 'Unknown' }}
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-neutral-600">Completed on:</span>
+            <span class="font-semibold text-green-700">{{ formatDateShort(assessment.completedAt) }}</span>
+          </div>
+        </div>
+        <div v-if="reEvalError" class="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">
+          {{ reEvalError }}
+        </div>
+      </BaseCard>
+
+      <!-- Standard completed view for non-admin -->
+      <div v-else-if="assessment.status === 'COMPLETED' && canReEvaluate" class="mb-6">
         <BaseCard>
-          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p class="text-green-800">
-              Assessment completed on {{ formatDate(assessment.completedAt) }}
-            </p>
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex-1">
+              <p class="text-green-800 text-sm">Assessment completed on {{ formatDate(assessment.completedAt) }}</p>
+            </div>
+            <router-link
+              :to="backUrl"
+              class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50 whitespace-nowrap"
+            >
+              <ArrowLeft class="w-3.5 h-3.5" />
+              {{ backLabel }}
+            </router-link>
+          </div>
+        </BaseCard>
+      </div>
+      <div v-else-if="assessment.status === 'COMPLETED'" class="mb-6">
+        <BaseCard>
+          <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+            <p class="text-green-800 text-sm">Assessment completed on {{ formatDate(assessment.completedAt) }}</p>
           </div>
         </BaseCard>
       </div>
 
-      <!-- Re-evaluation Section (Coordinator/Admin only) -->
-      <BaseCard v-if="assessment.status === 'COMPLETED' && canReEvaluate" class="mb-6">
+      <!-- Re-evaluation Section for non-admin coordinator -->
+      <BaseCard v-if="!isAdminView && assessment.status === 'COMPLETED' && canReEvaluate" class="mb-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-neutral-900">Re-evaluate Assessment</h3>
           <button
@@ -260,26 +369,11 @@
           </div>
 
           <div v-if="reEvalForm.opiLevelId" class="border-t border-neutral-200 pt-4">
-            <h4 class="text-sm font-semibold text-neutral-800 mb-2">
-              Assessment Criteria for Level {{ reEvalForm.opiLevelId }}
-            </h4>
-
-            <p v-if="selectedReEvalLevelCriteria.length === 0" class="text-sm text-neutral-500">
-              No active criteria configured for this level.
-            </p>
-
+            <h4 class="text-sm font-semibold text-neutral-800 mb-2">Assessment Criteria for Level {{ reEvalForm.opiLevelId }}</h4>
+            <p v-if="selectedReEvalLevelCriteria.length === 0" class="text-sm text-neutral-500">No active criteria configured for this level.</p>
             <div v-else class="grid gap-2 sm:grid-cols-2">
-              <label
-                v-for="criteria in selectedReEvalLevelCriteria"
-                :key="criteria.id"
-                class="flex items-start gap-2 text-sm text-neutral-700"
-              >
-                <input
-                  type="checkbox"
-                  class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-orange-700 focus:ring-orange-500"
-                  :checked="reEvalForm.criteriaIds.includes(criteria.id)"
-                  @change="toggleCriteria('reeval', criteria.id)"
-                />
+              <label v-for="criteria in selectedReEvalLevelCriteria" :key="criteria.id" class="flex items-start gap-2 text-sm text-neutral-700">
+                <input type="checkbox" class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-orange-700 focus:ring-orange-500" :checked="reEvalForm.criteriaIds.includes(criteria.id)" @change="toggleCriteria('reeval', criteria.id)" />
                 <span>{{ criteria.description }}</span>
               </label>
             </div>
@@ -287,43 +381,22 @@
 
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-2">Reason for Change <span class="text-red-500">*</span></label>
-            <textarea
-              v-model="reEvalForm.reason"
-              rows="2"
-              class="w-full rounded-md border-neutral-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-              placeholder="Explain why the score is being changed..."
-            ></textarea>
+            <textarea v-model="reEvalForm.reason" rows="2" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="Explain why the score is being changed..."></textarea>
           </div>
 
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-2">Updated Notes (Optional)</label>
-            <textarea
-              v-model="reEvalForm.notes"
-              rows="2"
-              class="w-full rounded-md border-neutral-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-              placeholder="Additional notes..."
-            ></textarea>
+            <textarea v-model="reEvalForm.notes" rows="2" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="Additional notes..."></textarea>
           </div>
 
           <div class="flex gap-3">
-            <button
-              :disabled="!canSubmitReEval || isReEvaluating"
-              class="px-4 py-2 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="submitReEvaluation"
-            >
+            <button :disabled="!canSubmitReEval || isReEvaluating" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed" @click="submitReEvaluation">
               {{ isReEvaluating ? 'Saving...' : 'Submit Re-evaluation' }}
             </button>
-            <button
-              class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded-md hover:bg-neutral-200"
-              @click="showReEvaluateForm = false"
-            >
-              Cancel
-            </button>
+            <button class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded-md hover:bg-neutral-200" @click="showReEvaluateForm = false">Cancel</button>
           </div>
 
-          <div v-if="reEvalError" class="text-sm text-red-600 bg-red-50 p-3 rounded-md">
-            {{ reEvalError }}
-          </div>
+          <div v-if="reEvalError" class="text-sm text-red-600 bg-red-50 p-3 rounded-md">{{ reEvalError }}</div>
         </div>
       </BaseCard>
 
@@ -333,15 +406,46 @@
       </BaseCard>
 
       <!-- BOTTOM ACTION BAR -->
-      <div v-if="assessment.status !== 'COMPLETED'" class="sticky bottom-0 bg-white border-t border-neutral-200 py-4 -mx-6 px-6 mt-6">
+      <div v-if="assessment.status !== 'COMPLETED' || isAdminView" class="sticky bottom-0 bg-white border-t border-neutral-200 py-4 -mx-6 px-6 mt-6">
         <div class="flex flex-wrap gap-3 justify-between">
           <router-link
             :to="backUrl"
-            class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50"
+            class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50 inline-flex items-center gap-1"
           >
-            &larr; Back to Assignments
+            <ArrowLeft class="w-3.5 h-3.5" />
+            {{ backLabel }}
           </router-link>
-          <div class="flex gap-3">
+
+          <!-- Admin action buttons -->
+          <div v-if="isAdminView" class="flex gap-3">
+            <button
+              type="button"
+              :disabled="isMarkingAbsent"
+              class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 text-neutral-600 rounded px-4 py-2 hover:bg-neutral-50 disabled:opacity-50"
+              @click="markAbsent"
+            >
+              {{ isMarkingAbsent ? 'Marking...' : 'Absent from Assessment' }}
+            </button>
+            <button
+              type="button"
+              :disabled="isSaving"
+              class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 text-neutral-700 rounded px-4 py-2 hover:bg-neutral-50 disabled:opacity-50"
+              @click="saveDraft"
+            >
+              {{ isSaving ? 'Saving...' : 'Save Progress' }}
+            </button>
+            <button
+              type="button"
+              :disabled="!canSubmitReEval || isReEvaluating"
+              class="text-xs font-semibold uppercase tracking-wider bg-neutral-900 text-white rounded px-5 py-2 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="submitReEvaluation"
+            >
+              {{ isReEvaluating ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+
+          <!-- Evaluator action buttons -->
+          <div v-else class="flex gap-3">
             <button
               type="button"
               :disabled="isMarkingAbsent"
@@ -361,6 +465,7 @@
             <button
               type="button"
               :disabled="!canComplete"
+              :title="canCompleteReason"
               class="text-xs font-semibold uppercase tracking-wider border border-green-300 text-green-800 bg-green-50 rounded px-4 py-2 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="handleSubmit"
             >
@@ -374,11 +479,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { Mic, Upload } from 'lucide-vue-next';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { Mic, Upload, ArrowLeft, AlertTriangle } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
+import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import AssessmentHistoryTimeline from '../../components/assessment/AssessmentHistoryTimeline.vue';
 import AudioRecorder from '../../components/audio/AudioRecorder.vue';
@@ -415,6 +521,8 @@ interface AudioRecording {
 }
 
 const audioRecordings = ref<AudioRecording[]>([]);
+const recordingBlobUrls = ref<Record<number, string>>({});
+const recordingLoading = ref<Record<number, boolean>>({});
 
 interface AssessmentCriteria {
   id: number;
@@ -479,12 +587,23 @@ const form = ref({
   criteriaIds: [] as number[],
 });
 
+// Detect admin context from query param
+const isAdminView = computed(() => route.query.from === 'admin-verification');
+
 // Computed
 const backUrl = computed(() => {
+  if (isAdminView.value) {
+    return '/admin/data-verification';
+  }
   if (assessment.value?.classContext?.classId) {
     return `/evaluator/classes/${assessment.value.classContext.classId}`;
   }
   return '/evaluator/assignments';
+});
+
+const backLabel = computed(() => {
+  if (isAdminView.value) return 'Back to Data Verification';
+  return 'Back to Assignments';
 });
 
 const statusClass = computed(() => {
@@ -508,7 +627,16 @@ const canComplete = computed(() => {
          audioRecordings.value.length > 0;
 });
 
+const canCompleteReason = computed(() => {
+  const missing: string[] = [];
+  if (form.value.opiLevelId === null) missing.push('select an OPI score');
+  if (audioRecordings.value.length === 0) missing.push('upload an audio recording');
+  if (missing.length === 0) return '';
+  return `To complete: ${missing.join(' and ')}`;
+});
+
 // Re-evaluation state (Coordinator/Admin only)
+// Auto-expand re-eval form when admin opens a completed assessment
 const showReEvaluateForm = ref(false);
 const isReEvaluating = ref(false);
 const reEvalError = ref<string | null>(null);
@@ -517,7 +645,55 @@ const reEvalForm = ref({
   reason: '',
   notes: '',
   criteriaIds: [] as number[],
+  flagForReview: false,
 });
+
+// Unified active-form computed properties — in admin view these point to reEvalForm, otherwise form
+const activeOpiLevelId = computed(() =>
+  isAdminView.value ? reEvalForm.value.opiLevelId : form.value.opiLevelId,
+);
+
+const activeLevelCriteria = computed(() => {
+  const levelId = activeOpiLevelId.value;
+  if (!levelId) return [];
+  return opiLevels.value.find((l) => l.id === levelId)?.criteria ?? [];
+});
+
+const activeCriteriaIds = computed(() =>
+  isAdminView.value ? reEvalForm.value.criteriaIds : form.value.criteriaIds,
+);
+
+const activeNotes = computed({
+  get: () => (isAdminView.value ? reEvalForm.value.notes : form.value.notes),
+  set: (v: string) => {
+    if (isAdminView.value) {
+      reEvalForm.value.notes = v;
+    } else {
+      form.value.notes = v;
+    }
+  },
+});
+
+function setActiveOpiLevel(levelId: number) {
+  if (isAdminView.value) {
+    reEvalForm.value.opiLevelId = levelId;
+  } else {
+    form.value.opiLevelId = levelId;
+  }
+}
+
+function toggleActiveCriteria(criteriaId: number) {
+  if (isAdminView.value) {
+    toggleCriteria('reeval', criteriaId);
+  } else {
+    toggleCriteria('form', criteriaId);
+  }
+}
+
+function formatDateShort(dateStr?: string): string {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toISOString().split('T')[0];
+}
 
 const selectedLevelCriteria = computed(() => {
   if (!form.value.opiLevelId) {
@@ -574,7 +750,7 @@ async function submitReEvaluation() {
     assessment.value = await res.json();
     syncFormWithAssessment();
     showReEvaluateForm.value = false;
-    reEvalForm.value = { opiLevelId: null, reason: '', notes: '', criteriaIds: [] };
+    reEvalForm.value = { opiLevelId: null, reason: '', notes: '', criteriaIds: [], flagForReview: false };
   } catch (e) {
     reEvalError.value = e instanceof Error ? e.message : 'An error occurred';
   } finally {
@@ -625,6 +801,7 @@ function toggleReEvaluateForm() {
     reason: '',
     notes: form.value.notes,
     criteriaIds: [...form.value.criteriaIds],
+    flagForReview: false,
   };
 }
 
@@ -676,12 +853,93 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+function isProtectedApiUrl(url: string): boolean {
+  return url.startsWith('/api/') || url.startsWith(`${API_BASE}/`);
+}
+
+function getPlaybackUrl(recording: AudioRecording): string {
+  if (recordingBlobUrls.value[recording.id]) {
+    return recordingBlobUrls.value[recording.id];
+  }
+  return isProtectedApiUrl(recording.downloadUrl) ? '' : recording.downloadUrl;
+}
+
+async function ensureRecordingBlobUrl(recording: AudioRecording): Promise<string> {
+  const cached = recordingBlobUrls.value[recording.id];
+  if (cached) {
+    return cached;
+  }
+
+  recordingLoading.value = { ...recordingLoading.value, [recording.id]: true };
+  try {
+    const response = await fetch(recording.downloadUrl, {
+      headers: getAuthHeaders(false),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to download audio file');
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    recordingBlobUrls.value = {
+      ...recordingBlobUrls.value,
+      [recording.id]: blobUrl,
+    };
+    return blobUrl;
+  } finally {
+    recordingLoading.value = { ...recordingLoading.value, [recording.id]: false };
+  }
+}
+
+async function playRecording(recording: AudioRecording) {
+  try {
+    const url = await ensureRecordingBlobUrl(recording);
+    const element = document.getElementById(`audio-player-${recording.id}`) as HTMLAudioElement | null;
+    if (!element) return;
+    if (element.src !== url) {
+      element.src = url;
+      element.load();
+    }
+    await element.play();
+  } catch (err) {
+    audioUploadError.value = err instanceof Error ? err.message : 'Failed to play recording';
+  }
+}
+
+async function downloadRecording(recording: AudioRecording) {
+  try {
+    const url = await ensureRecordingBlobUrl(recording);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = recording.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    audioUploadError.value = err instanceof Error ? err.message : 'Failed to download recording';
+  }
+}
+
+function clearRecordingBlobUrls() {
+  Object.values(recordingBlobUrls.value).forEach((url) => URL.revokeObjectURL(url));
+  recordingBlobUrls.value = {};
+  recordingLoading.value = {};
+}
+
 // Handle file upload from file picker
 async function handleFileUpload(event: Event) {
   const input = event.target as HTMLInputElement;
   if (!input.files || input.files.length === 0 || !assessment.value) return;
 
   const file = input.files[0];
+  if (!['audio/mpeg', 'audio/mp3'].includes(file.type)) {
+    audioUploadError.value = 'Only MP3 files are allowed';
+    input.value = '';
+    return;
+  }
+
   // Validate size (50MB max)
   if (file.size > 50 * 1024 * 1024) {
     audioUploadError.value = 'File size exceeds 50MB limit';
@@ -690,7 +948,21 @@ async function handleFileUpload(event: Event) {
 
   try {
     const formData = new FormData();
-    formData.append('file', file, file.name);
+    
+    // Create friendly timestamp: YYYY-MM-DD_HH-mm-ss
+    const now = new Date();
+    const dateStr = now.getFullYear() + 
+      String(now.getMonth() + 1).padStart(2, '0') + 
+      String(now.getDate()).padStart(2, '0');
+    const timeStr = String(now.getHours()).padStart(2, '0') + 
+      String(now.getMinutes()).padStart(2, '0') + 
+      String(now.getSeconds()).padStart(2, '0');
+      
+    // Use original extension or fallback to mp3
+    const extension = file.name.split('.').pop() || 'mp3';
+    const friendlyName = `assessment-${assessment.value.id}-${dateStr}_${timeStr}.${extension}`;
+
+    formData.append('file', file, friendlyName);
 
     const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio`, {
       method: 'POST',
@@ -721,7 +993,26 @@ async function handleAudioRecorded(blob: Blob) {
   
   try {
     const formData = new FormData();
-    formData.append('file', blob, 'audio.webm');
+    const extension = blob.type.includes('webm')
+      ? 'webm'
+      : blob.type.includes('ogg')
+        ? 'ogg'
+        : blob.type.includes('mp4')
+          ? 'mp4'
+          : 'mp3';
+          
+    // Create friendly timestamp: YYYY-MM-DD_HH-mm-ss
+    const now = new Date();
+    const dateStr = now.getFullYear() + 
+      String(now.getMonth() + 1).padStart(2, '0') + 
+      String(now.getDate()).padStart(2, '0');
+    const timeStr = String(now.getHours()).padStart(2, '0') + 
+      String(now.getMinutes()).padStart(2, '0') + 
+      String(now.getSeconds()).padStart(2, '0');
+      
+    const friendlyName = `assessment-${assessment.value.id}-${dateStr}_${timeStr}.${extension}`;
+    
+    formData.append('file', blob, friendlyName);
     
     const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio`, {
       method: 'POST',
@@ -760,11 +1051,16 @@ async function fetchAudioRecordings() {
     }
 
     const data = await response.json();
+    clearRecordingBlobUrls();
     audioRecordings.value = data;
   } catch (error) {
     console.error('Error fetching audio recordings:', error);
   }
 }
+
+onBeforeUnmount(() => {
+  clearRecordingBlobUrls();
+});
 
 // API calls
 async function fetchAssessment() {
@@ -795,6 +1091,11 @@ async function fetchAssessment() {
     }
 
     syncFormWithAssessment();
+
+    // Auto-open re-eval form for admin viewing a completed assessment
+    if (isAdminView.value && assessment.value?.status === 'COMPLETED' && canReEvaluate.value) {
+      toggleReEvaluateForm();
+    }
 
     error.value = null;
   } catch (e) {

@@ -71,10 +71,17 @@ export class EvaluatorService {
 
         for (const sid of allStudentIds) {
             totalStudents++;
-            const status = assessmentMap.get(sid)?.status || 'NOT_STARTED';
-            if (status === 'COMPLETED') completed++;
-            else if (status === 'IN_PROGRESS') inProgress++;
-            else notStarted++;
+            const assessment = assessmentMap.get(sid);
+
+            // Not started means no assessment exists yet in the cycle.
+            if (!assessment) {
+                notStarted++;
+                continue;
+            }
+
+            // Personal dashboard counters only include assessments owned by this evaluator.
+            if (assessment.evaluatorId === evaluatorId && assessment.status === 'COMPLETED') completed++;
+            else if (assessment.evaluatorId === evaluatorId && assessment.status === 'IN_PROGRESS') inProgress++;
         }
 
         const progressPercent = totalStudents > 0 ? Math.round((completed / totalStudents) * 100) : 0;
@@ -175,10 +182,10 @@ export class EvaluatorService {
             return a.lastName.localeCompare(b.lastName);
         });
 
-        // Recent assessments (completed, last 6)
+        // Recent assessments (completed by this evaluator, last 5)
         const recentAssessments = assessments
-            .filter((a) => a.status === 'COMPLETED')
-            .slice(0, 6)
+            .filter((a) => a.status === 'COMPLETED' && a.evaluatorId === evaluatorId)
+            .slice(0, 5)
             .map((a) => ({
                 id: a.id,
                 studentName: `${a.student.firstName} ${a.student.lastName}`,
@@ -281,7 +288,12 @@ export class EvaluatorService {
             students: any[];
         }>();
 
+        const seenClassIds = new Set<number>();
+
         for (const a of assignments) {
+            if (seenClassIds.has(a.classId)) continue;
+            seenClassIds.add(a.classId);
+
             const school = a.class.school;
             if (!schoolGroups.has(school.id)) {
                 schoolGroups.set(school.id, {

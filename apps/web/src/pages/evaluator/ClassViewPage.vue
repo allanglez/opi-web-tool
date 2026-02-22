@@ -60,7 +60,7 @@
             <div class="flex items-center gap-3 mb-2 lg:mb-0">
               <h3 class="text-xl font-bold text-neutral-900">{{ cls.classCode }}</h3>
               <span
-                class="px-2 py-0.5 text-xs font-medium rounded-full"
+                class="px-2 py-0.5 text-xs font-bold rounded"
                 :class="classStatusStyle(cls.classStatus)"
               >
                 {{ cls.classStatus.replace('_', ' ') }}
@@ -169,7 +169,7 @@
               </template>
 
               <template #cell-status="{ row }">
-                <span class="px-2 py-1 text-xs font-medium rounded-full" :class="statusStyle(asClassStudent(row).status)">
+                <span class="px-2 py-1 text-xs font-bold rounded" :class="statusStyle(asClassStudent(row).status)">
                   {{ asClassStudent(row).status.replace('_', ' ') }}
                 </span>
               </template>

@@ -1,6 +1,6 @@
 <template>
   <span 
-    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+    class="inline-flex items-center px-3 py-1 rounded text-xs font-bold"
     :class="badgeClasses"
   >
     <slot />

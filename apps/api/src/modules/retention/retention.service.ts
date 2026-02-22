@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LocalStorageAdapter } from '../audio/storage/local.storage';
+import { createStorageAdapter } from '../audio/storage/storage.factory';
 import { StorageAdapter } from '../audio/storage/storage.interface';
 import { ReportsService } from '../reports/reports.service';
 
@@ -36,8 +36,7 @@ export class RetentionService {
     private readonly prisma: PrismaService,
     private readonly reportsService: ReportsService,
   ) {
-    const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
-    this.storageAdapter = new LocalStorageAdapter(uploadDir);
+    this.storageAdapter = createStorageAdapter();
   }
 
   /**

@@ -1,7 +1,8 @@
 import { promises as fs } from 'fs';
-import { createWriteStream } from 'fs';
+import { createReadStream, createWriteStream } from 'fs';
 import { join } from 'path';
 import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 import { StorageAdapter } from './storage.interface';
 
 export class LocalStorageAdapter implements StorageAdapter {
@@ -10,7 +11,7 @@ export class LocalStorageAdapter implements StorageAdapter {
     fs.mkdir(uploadDir, { recursive: true }).catch(() => {});
   }
 
-  async putObject(key: string, data: Buffer | NodeJS.ReadableStream, _mimeType: string): Promise<string> {
+  async putObject(key: string, data: Buffer | Readable, _mimeType: string): Promise<string> {
     const filePath = join(this.uploadDir, key);
     
     if (Buffer.isBuffer(data)) {
@@ -36,6 +37,33 @@ export class LocalStorageAdapter implements StorageAdapter {
     } catch (error) {
       // File might not exist, ignore
     }
+  }
+
+  async getObjectStream(
+    key: string,
+  ): Promise<{ stream: Readable; mimeType: string; sizeBytes?: number } | null> {
+    const filePath = join(this.uploadDir, key);
+    try {
+      const stats = await fs.stat(filePath);
+      const stream = createReadStream(filePath);
+      return {
+        stream,
+        mimeType: this.detectMimeTypeFromFilename(key),
+        sizeBytes: stats.size,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private detectMimeTypeFromFilename(fileName: string): string {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.mp3')) return 'audio/mpeg';
+    if (lower.endsWith('.wav')) return 'audio/wav';
+    if (lower.endsWith('.ogg')) return 'audio/ogg';
+    if (lower.endsWith('.m4a') || lower.endsWith('.mp4')) return 'audio/mp4';
+    if (lower.endsWith('.webm')) return 'audio/webm';
+    return 'application/octet-stream';
   }
 
   async getObjectMetadata(key: string): Promise<{ sizeBytes: number; mimeType: string } | null> {

@@ -5,7 +5,7 @@
         <!-- Logo -->
         <div class="flex items-center">
           <img 
-            src="../../assets/branding/yukon-logo.png" 
+            src="../../assets/branding/logo.svg" 
             alt="Yukon" 
             class="h-7 w-auto"
             @error="handleLogoError"
@@ -47,7 +47,7 @@
       <!-- Wave graphic -->
       <div class="mt-2 flex justify-end">
         <img 
-          src="../../assets/branding/yukon-waves.png" 
+          src="../../assets/branding/Aurora-main-full.svg" 
           alt="" 
           class="w-full max-w-[420px] h-9 object-contain object-right"
           @error="handleWaveError"

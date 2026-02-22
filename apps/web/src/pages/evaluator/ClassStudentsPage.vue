@@ -72,12 +72,12 @@
               </template>
 
               <template #cell-status="{ row }">
-                <span class="px-2 py-1 text-xs font-medium rounded-full" :class="getStatusClass(asStudent(row))">
+                <span class="px-2 py-1 text-xs font-bold rounded" :class="getStatusClass(asStudent(row))">
                   {{ asStudent(row).assessment.status.replace('_', ' ') }}
                 </span>
                 <span
                   v-if="asStudent(row).isLocked"
-                  class="ml-2 inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800"
+                  class="ml-2 inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded bg-orange-100 text-orange-800"
                   :title="`Locked by ${asStudent(row).assessment.evaluatorName}`"
                 >
                   <Lock class="w-3 h-3" /> {{ asStudent(row).assessment.evaluatorName }}

@@ -171,10 +171,10 @@ const formatFileSize = (bytes: number): string => {
 };
 
 // Emit audio blob when recording is complete
-const stopRecordingWithEmit = () => {
-  stopRecording();
-  if (state.audioBlob) {
-    emit('audioRecorded', state.audioBlob);
+const stopRecordingWithEmit = async () => {
+  const blob = await stopRecording();
+  if (blob) {
+    emit('audioRecorded', blob);
   }
 };
 </script>

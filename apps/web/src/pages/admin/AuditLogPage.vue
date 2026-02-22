@@ -115,7 +115,7 @@
 
         <template #cell-action="{ row }">
           <span
-            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
+            class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold whitespace-nowrap"
             :class="getActionBadgeClass(asAuditLog(row).action)"
           >
             {{ formatActionLabel(asAuditLog(row).action) }}

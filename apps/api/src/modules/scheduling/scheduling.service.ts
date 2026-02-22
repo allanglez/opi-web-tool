@@ -165,8 +165,6 @@ export class SchedulingService {
       });
 
     // Build upcoming assessment dates
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
     const upcomingDates: Array<{
       schoolId: number;
       schoolName: string;
@@ -175,7 +173,7 @@ export class SchedulingService {
     }> = [];
 
     for (const school of schoolItems) {
-      const futureDates = school.dates.filter((d) => new Date(d) >= now);
+      const futureDates = school.dates;
       if (futureDates.length === 0) continue;
 
       // Find evaluators assigned to this school
@@ -188,12 +186,17 @@ export class SchedulingService {
         .filter(Boolean)
         .map((e) => `${e!.firstName} ${e!.lastName}`.trim());
 
-      upcomingDates.push({
-        schoolId: school.id,
-        schoolName: school.name,
-        evaluatorName: evaluatorNames.length > 0 ? evaluatorNames.join(', ') : 'Not assigned',
-        dates: futureDates,
-      });
+      const evaluatorName = evaluatorNames.length > 0 ? evaluatorNames.join(', ') : 'Not assigned';
+
+      // One entry per upcoming date so the list shows all individual dates
+      for (const date of futureDates) {
+        upcomingDates.push({
+          schoolId: school.id,
+          schoolName: school.name,
+          evaluatorName,
+          dates: [date],
+        });
+      }
     }
 
     upcomingDates.sort((a, b) => {

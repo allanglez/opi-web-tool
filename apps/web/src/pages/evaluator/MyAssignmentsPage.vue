@@ -88,7 +88,7 @@
               </template>
 
               <template #cell-status="{ row }">
-                <span class="px-2 py-1 text-xs font-medium rounded-full" :class="statusClass(asStudentRow(row).status)">
+                <span class="px-2 py-1 text-xs font-bold rounded" :class="statusClass(asStudentRow(row).status)">
                   {{ asStudentRow(row).status.replace('_', ' ') }}
                 </span>
               </template>

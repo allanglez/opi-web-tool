@@ -130,7 +130,7 @@
             </div>
           </BaseCard>
         </RouterLink>
-
+<!-- 
         <RouterLink to="/coordinator/reports" class="block">
           <BaseCard class="border border-yukon-teal shadow-none hover:bg-cyan-50 transition-colors cursor-pointer">
             <div class="flex items-center justify-between gap-4">
@@ -141,7 +141,7 @@
               <ChevronRight class="w-5 h-5 text-yukon-navy" />
             </div>
           </BaseCard>
-        </RouterLink>
+        </RouterLink> -->
       </section>
     </template>
   </AppShell>

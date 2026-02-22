@@ -9,9 +9,11 @@ export interface AudioRecorderState {
 }
 
 export function useAudioRecorder() {
+  const RECORDING_MIME_TYPES = ['audio/mpeg', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', 'audio/mp4'];
   const mediaRecorder = ref<MediaRecorder | null>(null);
   const audioChunks = ref<Blob[]>([]);
   const stream = ref<MediaStream | null>(null);
+  const selectedMimeType = ref<string | null>(null);
 
   const state = reactive<AudioRecorderState>({
     isRecording: false,
@@ -23,14 +25,30 @@ export function useAudioRecorder() {
 
   let startTime: number | null = null;
   let durationInterval: number | null = null;
+  let stopResolver: ((blob: Blob | null) => void) | null = null;
 
   const isSupported = computed(() => {
-    return 'MediaRecorder' in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    return (
+      'MediaRecorder' in window
+      && typeof MediaRecorder.isTypeSupported === 'function'
+      && RECORDING_MIME_TYPES.some((mimeType) => MediaRecorder.isTypeSupported(mimeType))
+    );
   });
 
   const startRecording = async () => {
     try {
       state.error = null;
+
+      if (!isSupported.value) {
+        state.error = 'Audio recording is not supported in this browser. Please upload an MP3 file.';
+        return;
+      }
+
+      selectedMimeType.value = RECORDING_MIME_TYPES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || null;
+      if (!selectedMimeType.value) {
+        state.error = 'No supported recording format found in this browser. Please upload an MP3 file.';
+        return;
+      }
       
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -46,7 +64,7 @@ export function useAudioRecorder() {
       audioChunks.value = [];
 
       const recorder = new MediaRecorder(mediaStream, {
-        mimeType: 'audio/webm;codecs=opus',
+        mimeType: selectedMimeType.value,
       });
 
       recorder.ondataavailable = (event) => {
@@ -56,10 +74,15 @@ export function useAudioRecorder() {
       };
 
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunks.value, { type: selectedMimeType.value || 'audio/webm' });
         state.audioBlob = audioBlob;
         state.isRecording = false;
         state.isPaused = false;
+
+        if (stopResolver) {
+          stopResolver(audioBlob);
+          stopResolver = null;
+        }
         
         if (durationInterval) {
           clearInterval(durationInterval);
@@ -86,15 +109,20 @@ export function useAudioRecorder() {
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorder.value && state.isRecording) {
-      mediaRecorder.value.stop();
-      
+  const stopRecording = (): Promise<Blob | null> => {
+    if (!mediaRecorder.value || !state.isRecording) {
+      return Promise.resolve(state.audioBlob);
+    }
+
+    return new Promise((resolve) => {
+      stopResolver = resolve;
+      mediaRecorder.value?.stop();
+
       if (stream.value) {
-        stream.value.getTracks().forEach(track => track.stop());
+        stream.value.getTracks().forEach((track) => track.stop());
         stream.value = null;
       }
-    }
+    });
   };
 
   const pauseRecording = () => {

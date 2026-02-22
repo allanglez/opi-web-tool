@@ -1,5 +1,6 @@
 <template>
   <AppShell :user="currentUser">
+    <EvaluatorSubNav />
     <section class="pb-5 pt-1 md:pt-2">
       <h1 class="text-[2rem] md:text-[2.2rem] font-bold text-neutral-900 leading-tight">Evaluator Dashboard</h1>
       <p class="mt-1 text-sm text-neutral-600">Track your OPI assessment progress and upcoming sessions</p>
@@ -26,17 +27,6 @@
             <StatCard :value="dashboard.stats.completed" label="Completed" variant="green" />
             <StatCard :value="dashboard.stats.inProgress" label="In Progress" variant="yellow" />
             <StatCard :value="dashboard.stats.notStarted" label="Not Started" variant="red" />
-          </div>
-          <div>
-            <div class="flex justify-between text-sm mb-1">
-              <span class="font-medium text-neutral-700 uppercase tracking-wider text-xs">My Progress</span>
-              <span class="text-neutral-600 text-xs">{{ dashboard.stats.progressPercent }}%</span>
-            </div>
-            <ProgressBar
-              :percentage="dashboard.stats.progressPercent"
-              :show-label="false"
-              variant="green"
-            />
           </div>
         </BaseCard>
       </section>
@@ -94,10 +84,10 @@
                   Program: {{ student.programName || 'N/A' }} | Teacher: {{ student.teacherName || 'N/A' }}
                 </p>
                 <span
-                  class="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full"
+                  class="inline-block mt-1 px-2 py-0.5 text-xs font-bold rounded"
                   :class="student.status === 'IN_PROGRESS'
-                    ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
-                    : 'bg-red-100 text-red-800 border border-red-300'"
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-red-100 text-red-800'"
                 >
                   {{ student.status.replace('_', ' ') }}
                 </span>
@@ -177,9 +167,9 @@ import { ChevronRight, Lock } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
+import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
-import ProgressBar from '../../components/ui/ProgressBar.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

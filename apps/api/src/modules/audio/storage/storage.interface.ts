@@ -1,8 +1,10 @@
+import { Readable } from 'stream';
+
 export interface StorageAdapter {
   /**
    * Store a file and return the storage key
    */
-  putObject(key: string, data: Buffer | NodeJS.ReadableStream, mimeType: string): Promise<string>;
+  putObject(key: string, data: Buffer | Readable, mimeType: string): Promise<string>;
 
   /**
    * Get a public URL for accessing the file
@@ -18,4 +20,11 @@ export interface StorageAdapter {
    * Get file metadata (size, etc.)
    */
   getObjectMetadata(key: string): Promise<{ sizeBytes: number; mimeType: string } | null>;
+
+  /**
+   * Get a readable stream for object download.
+   */
+  getObjectStream(
+    key: string,
+  ): Promise<{ stream: Readable; mimeType: string; sizeBytes?: number } | null>;
 }

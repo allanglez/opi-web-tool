@@ -1,43 +1,62 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { promises as fs } from 'fs';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LocalStorageAdapter } from './storage/local.storage';
 import { StorageAdapter } from './storage/storage.interface';
 import { AuditService } from '../audit/audit.service';
+import { createStorageAdapter } from './storage/storage.factory';
 
 @Injectable()
 export class AudioService {
   private readonly storageAdapter: StorageAdapter;
+  private readonly storageProvider: string;
   private readonly allowedMimeTypes = [
-    'audio/webm',
-    'audio/ogg', 
     'audio/mpeg',
+    'audio/mp3',
+    'audio/webm',
+    'audio/ogg',
     'audio/wav',
-    'audio/mp4'
+    'audio/mp4',
+    'audio/x-m4a',
+    'audio/aac',
   ];
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
   ) {
-    const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
-    this.storageAdapter = new LocalStorageAdapter(uploadDir);
+    this.storageProvider = (process.env.AUDIO_STORAGE_PROVIDER || 'local').toLowerCase();
+    this.storageAdapter = createStorageAdapter();
+    if (ffmpegPath) {
+      ffmpeg.setFfmpegPath(ffmpegPath);
+    }
   }
 
-  async uploadAudio(
-    assessmentId: number,
-    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
-    userId: number,
-  ) {
-    // Validate assessment exists and user has permission
+  private static readonly mimeExtensions: Record<string, string> = {
+    'audio/mpeg': '.mp3',
+    'audio/mp3': '.mp3',
+    'audio/webm': '.webm',
+    'audio/ogg': '.ogg',
+    'audio/wav': '.wav',
+    'audio/mp4': '.mp4',
+    'audio/x-m4a': '.m4a',
+    'audio/aac': '.aac',
+  };
+
+  private async assertAssessmentAccess(assessmentId: number, userId: number) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
+      select: { id: true, studentId: true },
     });
 
     if (!assessment) {
       throw new NotFoundException('Assessment not found');
     }
 
-    // Get student and class info to check assignment
     const student = await this.prisma.student.findUnique({
       where: { id: assessment.studentId },
       include: {
@@ -45,7 +64,11 @@ export class AudioService {
           include: {
             class: {
               include: {
-                evaluatorAssignments: true,
+                evaluatorAssignments: {
+                  select: {
+                    evaluatorId: true,
+                  },
+                },
               },
             },
           },
@@ -62,18 +85,73 @@ export class AudioService {
       throw new BadRequestException('Student is not enrolled in any class');
     }
 
-    // Check if user is assigned evaluator or admin/coordinator
     const isAssignedEvaluator = classStudent.class.evaluatorAssignments.some(
-      (assignment: any) => assignment.evaluatorId === userId,
+      (assignment) => assignment.evaluatorId === userId,
     );
 
     if (!isAssignedEvaluator) {
       throw new ForbiddenException('You are not assigned to this assessment');
     }
 
-    // Validate file type
+    return assessment;
+  }
+
+  private generateStorageKey(assessmentId: number): string {
+    return `assessment_${assessmentId}_${Date.now()}_${randomUUID()}.mp3`;
+  }
+
+  private getLocalDownloadUrl(assessmentId: number, storageKey: string): string {
+    return `/api/v1/assessments/${assessmentId}/audio/${encodeURIComponent(storageKey)}/download`;
+  }
+
+  private normalizeToMp3FileName(originalName: string): string {
+    const dot = originalName.lastIndexOf('.');
+    if (dot === -1) {
+      return `${originalName}.mp3`;
+    }
+    return `${originalName.slice(0, dot)}.mp3`;
+  }
+
+  private async transcodeBufferToMp3(fileBuffer: Buffer, mimeType: string): Promise<Buffer> {
+    const inputExt = AudioService.mimeExtensions[mimeType] || '.audio';
+    const tempBase = `${Date.now()}-${randomUUID()}`;
+    const inputPath = join(tmpdir(), `${tempBase}${inputExt}`);
+    const outputPath = join(tmpdir(), `${tempBase}.mp3`);
+
+    try {
+      await fs.writeFile(inputPath, fileBuffer);
+
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(inputPath)
+          .audioCodec('libmp3lame')
+          .audioBitrate('128k')
+          .format('mp3')
+          .on('end', () => resolve())
+          .on('error', reject)
+          .save(outputPath);
+      });
+
+      return await fs.readFile(outputPath);
+    } catch {
+      throw new BadRequestException('Failed to convert uploaded audio to MP3');
+    } finally {
+      await Promise.all([
+        fs.unlink(inputPath).catch(() => undefined),
+        fs.unlink(outputPath).catch(() => undefined),
+      ]);
+    }
+  }
+
+  async uploadAudio(
+    assessmentId: number,
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    userId: number,
+  ) {
+    await this.assertAssessmentAccess(assessmentId, userId);
+
+    // Validate file type - accepted formats are transcoded to MP3 when needed
     if (!this.allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(`Invalid file type. Allowed types: ${this.allowedMimeTypes.join(', ')}`);
+      throw new BadRequestException('Invalid file type. Supported formats: MP3, WebM, OGG, WAV, MP4/M4A, AAC.');
     }
 
     // Validate file size
@@ -83,19 +161,25 @@ export class AudioService {
       throw new BadRequestException(`File size exceeds ${maxSizeMB}MB limit`);
     }
 
+    const shouldTranscode = !['audio/mpeg', 'audio/mp3'].includes(file.mimetype);
+    const mp3Buffer = shouldTranscode
+      ? await this.transcodeBufferToMp3(file.buffer, file.mimetype)
+      : file.buffer;
+    const storedFileName = this.normalizeToMp3FileName(file.originalname);
+
     // Generate storage key and store file
-    const storageKey = LocalStorageAdapter.generateStorageKey(file.originalname);
-    await this.storageAdapter.putObject(storageKey, file.buffer, file.mimetype);
+    const storageKey = this.generateStorageKey(assessmentId);
+    await this.storageAdapter.putObject(storageKey, mp3Buffer, 'audio/mpeg');
 
     // Create database record
     const audioRecording = await this.prisma.audioRecording.create({
       data: {
         assessmentId,
-        storageProvider: 'local',
+        storageProvider: this.storageProvider,
         storageKey,
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-        fileSizeBytes: BigInt(file.size),
+        fileName: storedFileName,
+        mimeType: 'audio/mpeg',
+        fileSizeBytes: BigInt(mp3Buffer.length),
         uploadedBy: userId,
       },
     });
@@ -107,51 +191,14 @@ export class AudioService {
       userId,
     );
 
-    return audioRecording;
+    return {
+      ...audioRecording,
+      fileSizeBytes: Number(audioRecording.fileSizeBytes),
+    };
   }
 
   async getAudioRecordings(assessmentId: number, userId: number) {
-    // Verify user has access to this assessment
-    const assessment = await this.prisma.assessment.findUnique({
-      where: { id: assessmentId },
-    });
-
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found');
-    }
-
-    // Get student and class info to check assignment
-    const student = await this.prisma.student.findUnique({
-      where: { id: assessment.studentId },
-      include: {
-        classStudents: {
-          include: {
-            class: {
-              include: {
-                evaluatorAssignments: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!student) {
-      throw new NotFoundException('Student not found');
-    }
-
-    const classStudent = student.classStudents[0];
-    if (!classStudent) {
-      throw new BadRequestException('Student is not enrolled in any class');
-    }
-
-    const isAssignedEvaluator = classStudent.class.evaluatorAssignments.some(
-      (assignment: any) => assignment.evaluatorId === userId,
-    );
-
-    if (!isAssignedEvaluator) {
-      throw new ForbiddenException('You are not assigned to this assessment');
-    }
+    await this.assertAssessmentAccess(assessmentId, userId);
 
     const recordings = await this.prisma.audioRecording.findMany({
       where: { assessmentId },
@@ -169,16 +216,39 @@ export class AudioService {
 
     // Add download URLs
     return Promise.all(
-      recordings.map(async (recording: any) => ({
+      recordings.map(async (recording) => ({
         ...recording,
-        downloadUrl: await this.storageAdapter.getObjectUrl(recording.storageKey),
+        downloadUrl: this.storageProvider === 'local'
+          ? this.getLocalDownloadUrl(assessmentId, recording.storageKey)
+          : await this.storageAdapter.getObjectUrl(recording.storageKey),
         fileSizeBytes: Number(recording.fileSizeBytes),
       })),
     );
   }
 
-  async getDownloadUrl(storageKey: string): Promise<string> {
-    return this.storageAdapter.getObjectUrl(storageKey);
+  async getAudioDownloadData(assessmentId: number, storageKey: string, userId: number) {
+    await this.assertAssessmentAccess(assessmentId, userId);
+
+    const recording = await this.prisma.audioRecording.findFirst({
+      where: { assessmentId, storageKey },
+      select: { fileName: true, mimeType: true },
+    });
+
+    if (!recording) {
+      throw new NotFoundException('Audio recording not found for this assessment');
+    }
+
+    const objectStream = await this.storageAdapter.getObjectStream(storageKey);
+    if (!objectStream) {
+      throw new NotFoundException('Audio file not found in storage');
+    }
+
+    return {
+      stream: objectStream.stream,
+      sizeBytes: objectStream.sizeBytes,
+      mimeType: objectStream.mimeType || recording.mimeType,
+      fileName: recording.fileName,
+    };
   }
 
   async hasAudioRecording(assessmentId: number): Promise<boolean> {

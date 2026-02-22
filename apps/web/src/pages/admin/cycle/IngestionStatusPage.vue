@@ -60,13 +60,13 @@
           <template #cell-status="{ row }">
             <span
               v-if="asIngestionLog(row).recordsFailed === 0"
-              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+              class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800"
             >
               Success
             </span>
             <span
               v-else
-              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+              class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-800"
             >
               Partial
             </span>

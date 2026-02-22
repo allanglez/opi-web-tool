@@ -58,7 +58,7 @@
           <template #cell-status="{ row }">
             <span
               :class="asConfig(row).isActive ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-600'"
-              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold"
             >
               {{ asConfig(row).isActive ? 'Active' : 'Inactive' }}
             </span>

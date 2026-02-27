@@ -1,6 +1,6 @@
 <template>
   <AppShell :user="currentUser">
-    <AdminSubNav />
+    <CoordinatorSubNav />
 
     <div class="mt-8 mb-6">
       <h1 class="text-3xl font-bold text-neutral-900 mb-1">Data Verification</h1>
@@ -196,7 +196,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
-import AdminSubNav from '../../components/layout/AdminSubNav.vue';
+import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
@@ -308,7 +308,7 @@ function formatDate(iso: string | null): string {
 }
 
 function viewAssessment(id: number) {
-  router.push({ path: `/evaluator/assessments/${id}`, query: { from: 'admin-verification' } });
+  router.push({ path: `/evaluator/assessments/${id}`, query: { from: 'coordinator-verification' } });
 }
 
 async function fetchData() {

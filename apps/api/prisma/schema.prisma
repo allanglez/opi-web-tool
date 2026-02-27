@@ -15,14 +15,15 @@ model Role {
 }
 
 model User {
-  id             Int       @id @default(autoincrement())
-  externalAuthId String    @unique @map("external_auth_id") @db.NVarChar(255)
-  firstName      String    @map("first_name") @db.NVarChar(100)
-  lastName       String    @map("last_name") @db.NVarChar(100)
-  email          String    @unique @db.NVarChar(255)
-  isActive       Boolean   @default(true) @map("is_active")
-  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime2
-  lastLoginAt    DateTime? @map("last_login_at") @db.DateTime2
+  id               Int       @id @default(autoincrement())
+  externalAuthId   String    @unique @map("external_auth_id") @db.NVarChar(255)
+  firstName        String    @map("first_name") @db.NVarChar(100)
+  lastName         String    @map("last_name") @db.NVarChar(100)
+  email            String    @unique @db.NVarChar(255)
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime2
+  lastLoginAt      DateTime? @map("last_login_at") @db.DateTime2
+  statusChangedAt  DateTime? @map("status_changed_at") @db.DateTime2
 
   userRoles              UserRole[]
   approvedCycles         AssessmentCycle[]      @relation("CycleApprover")

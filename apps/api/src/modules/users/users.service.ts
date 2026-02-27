@@ -32,20 +32,93 @@ export class UsersService {
   }
 
   async upsertFromAuth0(externalAuthId: string, email: string, firstName?: string, lastName?: string) {
-    const user = await this.prisma.user.upsert({
+    // First, try to find user by externalAuthId
+    let user = await this.prisma.user.findUnique({
       where: { externalAuthId },
-      update: {
-        lastLoginAt: new Date(),
-        email,
-        ...(firstName && { firstName }),
-        ...(lastName && { lastName }),
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
       },
-      create: {
+    });
+
+    // If not found by externalAuthId, check if a pre-created user exists with this email
+    if (!user) {
+      const existingUserByEmail = await this.prisma.user.findUnique({
+        where: { email },
+        include: {
+          userRoles: {
+            include: {
+              role: true,
+            },
+          },
+        },
+      });
+
+      // If a pre-created user exists with this email, link it to the Auth0 account
+      if (existingUserByEmail) {
+        user = await this.prisma.user.update({
+          where: { id: existingUserByEmail.id },
+          data: {
+            externalAuthId,
+            lastLoginAt: new Date(),
+            ...(firstName && { firstName }),
+            ...(lastName && { lastName }),
+          },
+          include: {
+            userRoles: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        });
+        return user;
+      }
+    }
+
+    // If user exists by externalAuthId, update login time and profile
+    if (user) {
+      user = await this.prisma.user.update({
+        where: { externalAuthId },
+        data: {
+          lastLoginAt: new Date(),
+          email,
+          ...(firstName && { firstName }),
+          ...(lastName && { lastName }),
+        },
+        include: {
+          userRoles: {
+            include: {
+              role: true,
+            },
+          },
+        },
+      });
+      return user;
+    }
+
+    // If no user exists, create a new one with PENDING role
+    const pendingRole = await this.prisma.role.findUnique({
+      where: { name: 'PENDING' },
+    });
+
+    user = await this.prisma.user.create({
+      data: {
         externalAuthId,
         email,
         firstName: firstName || '',
         lastName: lastName || '',
         isActive: true,
+        userRoles: pendingRole
+          ? {
+              create: {
+                roleId: pendingRole.id,
+              },
+            }
+          : undefined,
       },
       include: {
         userRoles: {
@@ -73,6 +146,8 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       isActive: user.isActive,
+      lastLoginAt: user.lastLoginAt,
+      statusChangedAt: user.statusChangedAt,
       roles: user.userRoles.map((ur) => ur.role.name),
     };
   }
@@ -95,6 +170,8 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       isActive: user.isActive,
+      lastLoginAt: user.lastLoginAt,
+      statusChangedAt: user.statusChangedAt,
       roles: user.userRoles.map((ur) => ur.role.name),
     }));
   }
@@ -189,7 +266,10 @@ export class UsersService {
   async setActiveStatus(userId: number, isActive: boolean) {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { isActive },
+      data: { 
+        isActive,
+        statusChangedAt: new Date(),
+      },
     });
     return this.getUserWithRoles(userId);
   }

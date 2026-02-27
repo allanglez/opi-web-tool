@@ -235,6 +235,14 @@ export class DashboardService {
         },
         evaluator: { select: { id: true, firstName: true, lastName: true } },
         score: { include: { opiLevel: { select: { id: true, description: true } } } },
+        auditLogs: {
+          where: { action: 'ASSESSMENT_RE_EVALUATE' },
+          orderBy: { changedAt: 'desc' },
+          take: 1,
+          include: {
+            changer: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
         reviewFlags: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -254,12 +262,13 @@ export class DashboardService {
     // Apply class/school/program filters post-query (via classStudents join)
     const filtered = assessments.filter((a) => {
       const classStudent = a.student.classStudents[0];
+      const latestReEvalLog = a.auditLogs[0] ?? null;
       if (!classStudent) return true;
       if (filters?.schoolId && a.student.schoolId !== filters.schoolId) return false;
       if (filters?.classId && classStudent.classId !== filters.classId) return false;
       if (filters?.programId && classStudent.class.programId !== filters.programId) return false;
-      if (filters?.reEval === 'YES' && a.reviewFlags.length === 0) return false;
-      if (filters?.reEval === 'NO' && a.reviewFlags.length > 0) return false;
+      if (filters?.reEval === 'YES' && !latestReEvalLog) return false;
+      if (filters?.reEval === 'NO' && latestReEvalLog) return false;
       return true;
     });
 
@@ -273,7 +282,7 @@ export class DashboardService {
     const rows = filtered.map((a) => {
       const classStudent = a.student.classStudents[0];
       const cls = classStudent?.class;
-      const latestFlag = a.reviewFlags[0] ?? null;
+      const latestReEvalLog = a.auditLogs[0] ?? null;
 
       return {
         id: a.id,
@@ -284,15 +293,15 @@ export class DashboardService {
         program: cls?.program?.name ?? null,
         status: a.status,
         score: a.score?.opiLevel?.id ?? null,
-        reEval: latestFlag !== null,
+        reEval: latestReEvalLog !== null,
         evaluator: a.evaluator
           ? `${a.evaluator.firstName} ${a.evaluator.lastName}`.trim()
           : null,
         completedDate: a.completedAt ? a.completedAt.toISOString() : null,
         startDate: a.startedAt ? a.startedAt.toISOString() : null,
-        lastReEvalDate: latestFlag?.createdAt ? latestFlag.createdAt.toISOString() : null,
-        lastReEvalBy: latestFlag?.flagger
-          ? `${latestFlag.flagger.firstName} ${latestFlag.flagger.lastName}`.trim()
+        lastReEvalDate: latestReEvalLog?.changedAt ? latestReEvalLog.changedAt.toISOString() : null,
+        lastReEvalBy: latestReEvalLog?.changer
+          ? `${latestReEvalLog.changer.firstName} ${latestReEvalLog.changer.lastName}`.trim()
           : null,
       };
     });

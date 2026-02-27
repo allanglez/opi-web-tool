@@ -69,6 +69,7 @@ export class MockAuthGuard implements CanActivate {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        isActive: user.isActive,
         roles: user.userRoles.map((ur) => ur.role.name),
         mockAuth: true,
       };
@@ -80,6 +81,7 @@ export class MockAuthGuard implements CanActivate {
         email: 'admin@mock.local',
         firstName: 'Mock',
         lastName: 'Admin',
+        isActive: true,
         roles: ['ADMIN'],
         mockAuth: true,
       };

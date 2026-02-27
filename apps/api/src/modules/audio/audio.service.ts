@@ -47,14 +47,23 @@ export class AudioService {
     'audio/aac': '.aac',
   };
 
-  private async assertAssessmentAccess(assessmentId: number, userId: number) {
+  private async assertAssessmentAccess(assessmentId: number, userId: number, userRoles: string[] = []) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
-      select: { id: true, studentId: true },
+      select: { id: true, studentId: true, evaluatorId: true },
     });
 
     if (!assessment) {
       throw new NotFoundException('Assessment not found');
+    }
+
+    const hasPrivilegedRole = userRoles.some((role) => role === 'ADMIN' || role === 'COORDINATOR');
+    if (hasPrivilegedRole) {
+      return assessment;
+    }
+
+    if (assessment.evaluatorId === userId) {
+      return assessment;
     }
 
     const student = await this.prisma.student.findUnique({
@@ -146,8 +155,9 @@ export class AudioService {
     assessmentId: number,
     file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
     userId: number,
+    userRoles: string[] = [],
   ) {
-    await this.assertAssessmentAccess(assessmentId, userId);
+    await this.assertAssessmentAccess(assessmentId, userId, userRoles);
 
     // Validate file type - accepted formats are transcoded to MP3 when needed
     if (!this.allowedMimeTypes.includes(file.mimetype)) {
@@ -197,8 +207,8 @@ export class AudioService {
     };
   }
 
-  async getAudioRecordings(assessmentId: number, userId: number) {
-    await this.assertAssessmentAccess(assessmentId, userId);
+  async getAudioRecordings(assessmentId: number, userId: number, userRoles: string[] = []) {
+    await this.assertAssessmentAccess(assessmentId, userId, userRoles);
 
     const recordings = await this.prisma.audioRecording.findMany({
       where: { assessmentId },
@@ -226,8 +236,13 @@ export class AudioService {
     );
   }
 
-  async getAudioDownloadData(assessmentId: number, storageKey: string, userId: number) {
-    await this.assertAssessmentAccess(assessmentId, userId);
+  async getAudioDownloadData(
+    assessmentId: number,
+    storageKey: string,
+    userId: number,
+    userRoles: string[] = [],
+  ) {
+    await this.assertAssessmentAccess(assessmentId, userId, userRoles);
 
     const recording = await this.prisma.audioRecording.findFirst({
       where: { assessmentId, storageKey },

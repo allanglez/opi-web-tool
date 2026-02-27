@@ -27,6 +27,7 @@ const tabs = [
   { name: 'coordinator-dashboard', label: 'Dashboard', to: { name: 'coordinator-dashboard' } },
   { name: 'coordinator-assignments', label: 'Assignments', to: { name: 'coordinator-assignments' } },
   { name: 'coordinator-scheduling', label: 'Scheduling', to: { name: 'coordinator-scheduling' } },
+  { name: 'coordinator-data-verification', label: 'Data Verification', to: { name: 'coordinator-data-verification' } },
   // { name: 'coordinator-reports', label: 'Reports', to: { name: 'coordinator-reports' } },
 ];
 

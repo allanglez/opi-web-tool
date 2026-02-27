@@ -13,32 +13,24 @@
       </div>
 
       <template v-else>
+        <section class="mb-6">
+          <h1 class="text-4xl font-bold text-neutral-900 mb-1">Assignments</h1>
+          <p class="text-sm text-neutral-600">Manage evaluator and student assignments for OPI assessments.</p>
+        </section>
+
         <!-- Header + Stats -->
-        <BaseCard class="mb-6">
-          <h2 class="text-xl font-bold text-neutral-900 mb-4">Class Assignment Management</h2>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <BaseCard class="mb-6 border border-neutral-200 shadow-none">
+          <h2 class="text-2xl font-bold text-neutral-900 mb-4">Class Assignment Management</h2>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard :value="stats.unassignedClasses" label="Unassigned Classes" variant="red" />
-            <StatCard :value="stats.assignedClasses" label="Assigned Classes" variant="green" />
-            <StatCard :value="stats.inProgressClasses" label="In Progress" variant="default" />
-            <StatCard :value="stats.completedClasses" label="Completed" variant="yellow" />
-          </div>
-          <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-neutral-700">Filter by School:</label>
-            <select
-              v-model="selectedSchoolId"
-              class="rounded-md border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-              @change="fetchData"
-            >
-              <option value="">All Schools</option>
-              <option v-for="school in schools" :key="school.id" :value="school.id">
-                {{ school.name }}
-              </option>
-            </select>
+            <StatCard :value="stats.assignedClasses" label="Assigned Classes" variant="blue" />
+            <StatCard :value="stats.inProgressClasses" label="In Progress" variant="yellow" />
+            <StatCard :value="stats.completedClasses" label="Completed" variant="green" />
           </div>
         </BaseCard>
 
         <!-- Evaluator Workload -->
-        <BaseCard class="mb-6">
+        <BaseCard class="mb-6 border border-neutral-200 shadow-none">
           <h3 class="text-lg font-bold text-neutral-900 mb-4">Evaluator Workload</h3>
           <div v-if="evaluatorWorkload.length === 0" class="text-neutral-500 text-sm py-4">
             No evaluators found.
@@ -47,12 +39,15 @@
             <div
               v-for="ev in evaluatorWorkload"
               :key="ev.id"
-              class="border border-neutral-200 p-4"
+              class="rounded border border-neutral-200 bg-white p-4"
             >
               <div class="font-semibold text-neutral-900">{{ ev.firstName }} {{ ev.lastName }}</div>
-              <div class="text-xs text-neutral-500 mb-2">{{ ev.email }}</div>
-              <div class="text-sm text-neutral-600 mb-2">
-                Classes: {{ ev.classCount }} | Students: {{ ev.studentCount }}
+              <div class="text-[11px] text-yukon-teal mb-2">{{ ev.email }}</div>
+              <div class="text-sm text-neutral-700 mb-2">
+                Total Classes: {{ ev.classCount }}
+              </div>
+              <div class="text-xs text-neutral-500 mb-2">
+                Total Students: {{ ev.studentCount }}
               </div>
               <ProgressBar
                 :percentage="ev.progress"
@@ -64,10 +59,23 @@
         </BaseCard>
 
         <!-- All Classes Table -->
-        <BaseCard>
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-neutral-900">All Classes</h3>
-            <span class="text-sm text-neutral-500">{{ filteredClasses.length }} classes total</span>
+        <BaseCard class="border border-neutral-200 shadow-none">
+          <div class="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
+            <h3 class="text-3xl font-bold text-neutral-900">All Classes</h3>
+            <div class="flex items-center gap-3">
+              <label class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Filter by School:</label>
+              <select
+                v-model="selectedSchoolId"
+                class="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-yukon-teal focus:ring-yukon-teal"
+                @change="fetchData"
+              >
+                <option value="">All Schools</option>
+                <option v-for="school in schools" :key="school.id" :value="school.id">
+                  {{ school.name }}
+                </option>
+              </select>
+              <span class="text-sm text-neutral-500">{{ filteredClasses.length }} classes total</span>
+            </div>
           </div>
 
           <div v-if="filteredClasses.length === 0" class="text-center py-8 text-neutral-500">
@@ -111,14 +119,14 @@
 
               <template #cell-progress="{ row }">
                 <div class="text-sm">
-                  <div class="font-semibold text-neutral-900">
+                  <div class="font-semibold" :class="progressCountClass(asClassRow(row).progress)">
                     {{ asClassRow(row).completedStudents }}/{{ asClassRow(row).totalStudents }}
                   </div>
                   <div class="text-xs text-neutral-500 mb-1">{{ asClassRow(row).progress }}% complete</div>
                   <ProgressBar
                     :percentage="asClassRow(row).progress"
                     :show-label="false"
-                    :variant="asClassRow(row).progress === 100 ? 'green' : 'default'"
+                    :variant="progressBarVariant(asClassRow(row).progress)"
                     class="w-24"
                   />
                 </div>
@@ -133,7 +141,7 @@
                   <span
                     v-for="ev in asClassRow(row).evaluators"
                     :key="ev.id"
-                    class="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded mr-1 mb-1"
+                    class="inline-block px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded mr-1 mb-1"
                   >
                     {{ ev.name }}
                   </span>
@@ -144,14 +152,14 @@
               <template #cell-actions="{ row }">
                 <button
                   v-if="asClassRow(row).isAssigned"
-                  class="px-3 py-1 text-xs font-semibold border border-neutral-900 text-neutral-900 hover:bg-neutral-100 uppercase tracking-wider"
+                  class="px-3 py-1 text-xs font-bold border border-yukon-teal text-yukon-teal bg-white hover:bg-cyan-50 uppercase tracking-wide"
                   @click="openAssignModal(asClassRow(row))"
                 >
                   Edit
                 </button>
                 <button
                   v-else
-                  class="px-3 py-1 text-xs font-semibold border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-700 uppercase tracking-wider"
+                  class="px-3 py-1 text-xs font-bold border border-yukon-navy bg-yukon-navy text-white hover:bg-[#122937] uppercase tracking-wide"
                   @click="openAssignModal(asClassRow(row))"
                 >
                   Assign
@@ -331,6 +339,18 @@ const selectedClass = ref<ClassRow | null>(null);
 
 function asClassRow(row: unknown): ClassRow {
   return row as ClassRow;
+}
+
+function progressCountClass(progress: number): string {
+  if (progress >= 100) return 'text-yukon-green';
+  if (progress <= 0) return 'text-yukon-red';
+  return 'text-yukon-navy';
+}
+
+function progressBarVariant(progress: number): 'default' | 'green' | 'red' {
+  if (progress >= 100) return 'green';
+  if (progress <= 0) return 'red';
+  return 'default';
 }
 
 const filteredClasses = computed(() => {

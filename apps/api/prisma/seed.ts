@@ -150,7 +150,7 @@ async function main() {
     },
   ];
 
-  const roleNames = ['ADMIN', 'COORDINATOR', 'EVALUATOR'];
+  const roleNames = ['ADMIN', 'COORDINATOR', 'EVALUATOR', 'PENDING'];
   let rolesCreated = 0;
   for (const name of roleNames) {
     await prisma.role.upsert({

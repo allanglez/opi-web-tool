@@ -18,7 +18,7 @@ export class AudioController {
   @Post()
   async uploadAudio(
     @Param('assessmentId') assessmentId: string,
-    @CurrentUser() user: { id: number },
+    @CurrentUser() user: { id: number; roles?: string[] },
     @Req() req: FastifyRequest,
   ) {
     const data = await req.file();
@@ -39,17 +39,19 @@ export class AudioController {
       parseInt(assessmentId, 10),
       file,
       user.id,
+      user.roles,
     );
   }
 
   @Get()
   async getAudioRecordings(
     @Param('assessmentId') assessmentId: string,
-    @CurrentUser() user: { id: number },
+    @CurrentUser() user: { id: number; roles?: string[] },
   ) {
     return this.audioService.getAudioRecordings(
       parseInt(assessmentId, 10),
       user.id,
+      user.roles,
     );
   }
 
@@ -57,13 +59,14 @@ export class AudioController {
   async downloadAudio(
     @Param('assessmentId') assessmentId: string,
     @Param('storageKey') storageKey: string,
-    @CurrentUser() user: { id: number },
+    @CurrentUser() user: { id: number; roles?: string[] },
     @Res({ passthrough: false }) res: FastifyReply,
   ) {
     const data = await this.audioService.getAudioDownloadData(
       parseInt(assessmentId, 10),
       storageKey,
       user.id,
+      user.roles,
     );
 
     if (data.sizeBytes) {

@@ -19,6 +19,7 @@ import { RetentionModule } from './modules/retention/retention.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { MockAuthGuard } from './common/guards/mock-auth.guard';
+import { ActiveUserGuard } from './common/guards/active-user.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ScopesGuard } from './common/guards/scopes.guard';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
@@ -51,6 +52,10 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     {
       provide: APP_GUARD,
       useClass: process.env.AUTH_MOCK === 'true' ? MockAuthGuard : JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ActiveUserGuard,
     },
     {
       provide: APP_GUARD,

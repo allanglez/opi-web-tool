@@ -139,6 +139,12 @@ const router = createRouter({
       component: () => import('../pages/coordinator/CoordinatorReportsPage.vue'),
       meta: { roles: ['COORDINATOR', 'ADMIN'] },
     },
+    {
+      path: '/coordinator/data-verification',
+      name: 'coordinator-data-verification',
+      component: () => import('../pages/coordinator/DataVerificationPage.vue'),
+      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+    },
     // Evaluator routes
     {
       path: '/evaluator/dashboard',

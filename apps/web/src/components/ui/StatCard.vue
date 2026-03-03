@@ -15,7 +15,7 @@ import { computed } from 'vue';
 interface Props {
   value: string | number;
   label: string;
-  variant?: 'default' | 'blue' | 'green' | 'yellow' | 'red';
+  variant?: 'default' | 'blue' | 'green' | 'yellow' | 'red' | 'purple';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -29,6 +29,7 @@ const valueColorClass = computed(() => {
     green: 'text-yukon-green',
     yellow: 'text-yukon-yellow',
     red: 'text-yukon-red',
+    purple: 'text-purple-800',
   };
   return colorMap[props.variant];
 });
@@ -40,6 +41,7 @@ const containerClass = computed(() => {
     green: 'border-green-400 bg-green-50',
     yellow: 'border-yellow-400 bg-yellow-50',
     red: 'border-red-300 bg-red-50',
+    purple: 'border-purple-300 bg-purple-100',
   };
   return colorMap[props.variant];
 });

@@ -374,7 +374,192 @@ export class EvaluatorService {
     }
 
     /**
-     * Get class view data: classes with full details and student lists.
+     * Get class view data for coordinators/admins: all classes with pagination.
+     */
+    async getClassViewAll(
+        schoolId?: number,
+        classId?: number,
+        page: number = 1,
+        pageSize: number = 25,
+    ) {
+        const cycle = await this.cyclesService.checkCycleApproval();
+
+        const whereClause: any = {
+            cycleId: cycle.id,
+            isIncluded: true,
+        };
+        if (schoolId) whereClause.schoolId = schoolId;
+        if (classId) whereClause.id = classId;
+
+        // Get total count for pagination
+        const totalCount = await this.prisma.class.count({ where: whereClause });
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const skip = (page - 1) * pageSize;
+
+        // Get paginated classes
+        const classes = await this.prisma.class.findMany({
+            where: whereClause,
+            include: {
+                school: true,
+                program: true,
+                teacher: true,
+                classStudents: {
+                    include: { student: true },
+                },
+            },
+            orderBy: [
+                { school: { name: 'asc' } },
+                { classCode: 'asc' },
+            ],
+            skip,
+            take: pageSize,
+        });
+
+        // Collect all student IDs
+        const allStudentIds: number[] = [];
+        for (const cls of classes) {
+            for (const cs of cls.classStudents) {
+                if (!allStudentIds.includes(cs.studentId)) allStudentIds.push(cs.studentId);
+            }
+        }
+
+        const assessments = await this.prisma.assessment.findMany({
+            where: {
+                cycleId: cycle.id,
+                studentId: { in: allStudentIds.length > 0 ? allStudentIds : [-1] },
+            },
+            include: {
+                evaluator: { select: { id: true, firstName: true, lastName: true } },
+                score: { include: { opiLevel: true } },
+            },
+        });
+
+        const assessmentMap = new Map(assessments.map((a) => [a.studentId, a]));
+
+        // Get assessment dates per school
+        const schoolIds = [...new Set(classes.map((c) => c.schoolId))];
+        const dates = schoolIds.length > 0
+            ? await this.prisma.schoolAssessmentDate.findMany({
+                where: { cycleId: cycle.id, schoolId: { in: schoolIds } },
+                orderBy: { assessmentDate: 'asc' },
+            })
+            : [];
+
+        const schoolDatesMap = new Map<number, string[]>();
+        for (const d of dates) {
+            if (!schoolDatesMap.has(d.schoolId)) schoolDatesMap.set(d.schoolId, []);
+            const dateStr = d.assessmentDate.toISOString().split('T')[0];
+            const arr = schoolDatesMap.get(d.schoolId)!;
+            if (!arr.includes(dateStr)) arr.push(dateStr);
+        }
+
+        // Build class details
+        const classDetails = classes.map((cls) => {
+            const studentIds = cls.classStudents.map((cs) => cs.studentId);
+
+            let completedCount = 0;
+            let inProgressCount = 0;
+            let absentCount = 0;
+            let notStartedCount = 0;
+            let lastActivity: Date | null = null;
+
+            const students = cls.classStudents.map((cs) => {
+                const assessment = assessmentMap.get(cs.studentId);
+                const status = assessment?.status || 'NOT_STARTED';
+
+                if (status === 'COMPLETED') completedCount++;
+                else if (status === 'IN_PROGRESS') inProgressCount++;
+                else if (status === 'ABSENT') absentCount++;
+                else notStartedCount++;
+
+                if (assessment?.lastModifiedAt) {
+                    const mod = new Date(assessment.lastModifiedAt);
+                    if (!lastActivity || mod > lastActivity) lastActivity = mod;
+                }
+
+                return {
+                    id: cs.student.id,
+                    firstName: cs.student.firstName,
+                    lastName: cs.student.lastName,
+                    studentNumber: cs.student.studentNumber,
+                    status,
+                    score: assessment?.score?.opiLevel?.id ?? null,
+                    assessmentId: assessment?.id || null,
+                    lastModifiedAt: assessment?.lastModifiedAt || null,
+                };
+            });
+
+            students.sort((a, b) =>
+                a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName),
+            );
+
+            const total = studentIds.length;
+            const progressPercent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+
+            let classStatus = 'NOT_STARTED';
+            if (completedCount === total && total > 0) classStatus = 'COMPLETED';
+            else if (completedCount > 0 || inProgressCount > 0) classStatus = 'IN_PROGRESS';
+
+            return {
+                id: cls.id,
+                classCode: cls.classCode,
+                grade: cls.grade,
+                school: { id: cls.school.id, name: cls.school.name },
+                program: cls.program ? { id: cls.program.id, name: cls.program.name } : null,
+                teacher: cls.teacher?.name || null,
+                assessmentDates: schoolDatesMap.get(cls.schoolId) || [],
+                totalStudents: total,
+                completed: completedCount,
+                inProgress: inProgressCount,
+                absent: absentCount,
+                notStarted: notStartedCount,
+                progressPercent,
+                classStatus,
+                lastActivity,
+                students,
+            };
+        });
+
+        // Get all schools for filter dropdown
+        const allSchools = await this.prisma.school.findMany({
+            where: {
+                classes: {
+                    some: {
+                        cycleId: cycle.id,
+                        isIncluded: true,
+                    },
+                },
+            },
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+        });
+
+        // Get all classes for filter dropdown (filtered by school if provided)
+        const classFilterWhere: any = { cycleId: cycle.id, isIncluded: true };
+        if (schoolId) classFilterWhere.schoolId = schoolId;
+
+        const allClasses = await this.prisma.class.findMany({
+            where: classFilterWhere,
+            select: { id: true, classCode: true, schoolId: true },
+            orderBy: { classCode: 'asc' },
+        });
+
+        return {
+            cycle: { id: cycle.id, name: cycle.name },
+            availableSchools: allSchools,
+            availableClasses: allClasses,
+            classes: classDetails,
+            pagination: {
+                totalCount,
+                currentPage: page,
+                pageSize,
+                totalPages,
+            },
+        };
+    }
+
+    /**
+     * Get class view data for evaluators: only assigned classes.
      */
     async getClassView(evaluatorId: number, schoolId?: number, classId?: number) {
         const cycle = await this.cyclesService.checkCycleApproval();
@@ -534,47 +719,86 @@ export class EvaluatorService {
     }
 
     /**
-     * Get or create class notes for a class.
+     * Get all class notes for a class.
      */
-    async getClassNotes(classId: number, evaluatorId: number) {
+    async getClassNotes(classId: number, _userId: number) {
         const cycle = await this.cyclesService.checkCycleApproval();
 
-        // Verify assignment
+        // Verify user has access to this class (evaluator, coordinator, or admin)
         const assignment = await this.prisma.evaluatorAssignment.findFirst({
-            where: { classId, evaluatorId, cycleId: cycle.id },
+            where: { classId, cycleId: cycle.id },
         });
         if (!assignment) {
-            throw new ForbiddenException({ statusCode: 403, message: 'Not assigned to this class', error: 'NOT_ASSIGNED' });
+            throw new ForbiddenException({ statusCode: 403, message: 'Class not found or not accessible', error: 'NOT_ASSIGNED' });
         }
 
-        const note = await this.prisma.classNote.findUnique({
-            where: { classId_updatedBy: { classId, updatedBy: evaluatorId } },
+        const notes = await this.prisma.classNote.findMany({
+            where: { classId },
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
         });
 
-        return { note: note?.note || '', updatedAt: note?.updatedAt || null };
+        return notes.map((note) => ({
+            id: note.id,
+            note: note.note,
+            createdBy: {
+                id: note.author.id,
+                firstName: note.author.firstName,
+                lastName: note.author.lastName,
+            },
+            createdAt: note.createdAt,
+        }));
     }
 
     /**
-     * Save class notes.
+     * Create a new class note.
      */
-    async saveClassNotes(classId: number, evaluatorId: number, noteText: string) {
+    async saveClassNotes(classId: number, userId: number, noteText: string) {
         const cycle = await this.cyclesService.checkCycleApproval();
 
-        // Verify assignment
+        // Verify user has access to this class
         const assignment = await this.prisma.evaluatorAssignment.findFirst({
-            where: { classId, evaluatorId, cycleId: cycle.id },
+            where: { classId, cycleId: cycle.id },
         });
         if (!assignment) {
-            throw new ForbiddenException({ statusCode: 403, message: 'Not assigned to this class', error: 'NOT_ASSIGNED' });
+            throw new ForbiddenException({ statusCode: 403, message: 'Class not found or not accessible', error: 'NOT_ASSIGNED' });
         }
 
-        const note = await this.prisma.classNote.upsert({
-            where: { classId_updatedBy: { classId, updatedBy: evaluatorId } },
-            update: { note: noteText, updatedAt: new Date() },
-            create: { classId, updatedBy: evaluatorId, note: noteText },
+        const note = await this.prisma.classNote.create({
+            data: {
+                classId,
+                createdBy: userId,
+                note: noteText,
+            },
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
         });
 
-        return { note: note.note, updatedAt: note.updatedAt };
+        return {
+            id: note.id,
+            note: note.note,
+            createdBy: {
+                id: note.author.id,
+                firstName: note.author.firstName,
+                lastName: note.author.lastName,
+            },
+            createdAt: note.createdAt,
+        };
     }
 
     /**

@@ -20,80 +20,53 @@
     <!-- Filters Card -->
     <BaseCard class="mb-6">
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div>
-          <label class="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1">School</label>
-          <select
-            v-model="filters.schoolId"
-            class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            @change="applyFilters"
-          >
-            <option value="">All Schools</option>
-            <option v-for="s in filterOptions.schools" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-        </div>
+        <AppAutocomplete
+          v-model="filters.schoolId"
+          :options="schoolOptions"
+          label="School"
+          placeholder="Search schools..."
+          @update:model-value="applyFilters"
+        />
 
-        <div>
-          <label class="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1">Class</label>
-          <select
-            v-model="filters.classId"
-            class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            @change="applyFilters"
-          >
-            <option value="">All Classes</option>
-            <option v-for="c in filterOptions.classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-        </div>
+        <AppAutocomplete
+          v-model="filters.classId"
+          :options="classOptions"
+          label="Class"
+          placeholder="Search classes..."
+          @update:model-value="applyFilters"
+        />
 
-        <div>
-          <label class="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1">Evaluator</label>
-          <select
-            v-model="filters.evaluatorId"
-            class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            @change="applyFilters"
-          >
-            <option value="">All Evaluators</option>
-            <option v-for="e in filterOptions.evaluators" :key="e.id" :value="e.id">{{ e.name }}</option>
-          </select>
-        </div>
+        <AppAutocomplete
+          v-model="filters.evaluatorId"
+          :options="evaluatorOptions"
+          label="Evaluator"
+          placeholder="Search evaluators..."
+          @update:model-value="applyFilters"
+        />
 
-        <div>
-          <label class="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1">Re-evaluation</label>
-          <select
-            v-model="filters.reEval"
-            class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            @change="applyFilters"
-          >
-            <option value="">All</option>
-            <option value="YES">Yes</option>
-            <option value="NO">No</option>
-          </select>
-        </div>
+        <AppAutocomplete
+          v-model="filters.reEval"
+          :options="reEvalOptions"
+          label="Re-evaluation"
+          placeholder="All"
+          @update:model-value="applyFilters"
+        />
 
-        <div>
-          <label class="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1">Status</label>
-          <select
-            v-model="filters.status"
-            class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            @change="applyFilters"
-          >
-            <option value="">All Statuses</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="NOT_STARTED">Not Started</option>
-          </select>
-        </div>
+        <AppAutocomplete
+          v-model="filters.status"
+          :options="statusOptions"
+          label="Status"
+          placeholder="All statuses..."
+          @update:model-value="applyFilters"
+        />
 
-        <div>
-          <label class="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1">Program</label>
-          <select
-            v-model="filters.programId"
-            class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            @change="applyFilters"
-          >
-            <option value="">All Programs</option>
-            <option v-for="p in filterOptions.programs" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </div>
+        <AppAutocomplete
+          v-model="filters.programId"
+          :options="programOptions"
+          label="Program"
+          placeholder="Search programs..."
+          @update:model-value="applyFilters"
+        />
       </div>
 
       <p class="mt-3 text-xs text-neutral-500">
@@ -202,6 +175,7 @@ import StatCard from '../../components/ui/StatCard.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
 import ErrorState from '../../components/ui/ErrorState.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
+import AppAutocomplete from '../../components/ui/AppAutocomplete.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
 
 const authStore = useAuthStore();
@@ -252,13 +226,46 @@ const filterOptions = ref<VerificationResponse['filterOptions']>({
 });
 
 const filters = ref({
-  schoolId: '' as number | '',
-  classId: '' as number | '',
-  evaluatorId: '' as number | '',
-  reEval: '',
-  status: '',
-  programId: '' as number | '',
+  schoolId: null as number | null,
+  classId: null as number | null,
+  evaluatorId: null as number | null,
+  reEval: null as string | null,
+  status: null as string | null,
+  programId: null as number | null,
 });
+
+const schoolOptions = computed(() => [
+  { value: null, label: 'All Schools' },
+  ...filterOptions.value.schools.map((s) => ({ value: s.id, label: s.name })),
+]);
+
+const classOptions = computed(() => [
+  { value: null, label: 'All Classes' },
+  ...filterOptions.value.classes.map((c) => ({ value: c.id, label: c.name })),
+]);
+
+const evaluatorOptions = computed(() => [
+  { value: null, label: 'All Evaluators' },
+  ...filterOptions.value.evaluators.map((e) => ({ value: e.id, label: e.name })),
+]);
+
+const reEvalOptions = [
+  { value: null, label: 'All' },
+  { value: 'YES', label: 'Yes' },
+  { value: 'NO', label: 'No' },
+];
+
+const statusOptions = [
+  { value: null, label: 'All Statuses' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'NOT_STARTED', label: 'Not Started' },
+];
+
+const programOptions = computed(() => [
+  { value: null, label: 'All Programs' },
+  ...filterOptions.value.programs.map((p) => ({ value: p.id, label: p.name })),
+]);
 
 const columns: DataTableColumn<AssessmentRow>[] = [
   { key: 'studentName', header: 'Student Name', sortable: true, searchable: true, value: (r) => r.studentName },
@@ -316,12 +323,12 @@ async function fetchData() {
   error.value = null;
   try {
     const params: Record<string, unknown> = {};
-    if (filters.value.schoolId) params.schoolId = filters.value.schoolId;
-    if (filters.value.classId) params.classId = filters.value.classId;
-    if (filters.value.evaluatorId) params.evaluatorId = filters.value.evaluatorId;
-    if (filters.value.reEval) params.reEval = filters.value.reEval;
-    if (filters.value.status) params.status = filters.value.status;
-    if (filters.value.programId) params.programId = filters.value.programId;
+    if (filters.value.schoolId !== null) params.schoolId = filters.value.schoolId;
+    if (filters.value.classId !== null) params.classId = filters.value.classId;
+    if (filters.value.evaluatorId !== null) params.evaluatorId = filters.value.evaluatorId;
+    if (filters.value.reEval !== null) params.reEval = filters.value.reEval;
+    if (filters.value.status !== null) params.status = filters.value.status;
+    if (filters.value.programId !== null) params.programId = filters.value.programId;
 
     const data = await api.get<VerificationResponse>('/admin/dashboard/verification', params);
     assessments.value = data.assessments;

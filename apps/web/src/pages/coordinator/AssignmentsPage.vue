@@ -63,17 +63,13 @@
           <div class="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
             <h3 class="text-3xl font-bold text-neutral-900">All Classes</h3>
             <div class="flex items-center gap-3">
-              <label class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Filter by School:</label>
-              <select
+              <AppAutocomplete
                 v-model="selectedSchoolId"
-                class="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-yukon-teal focus:ring-yukon-teal"
-                @change="fetchData"
-              >
-                <option value="">All Schools</option>
-                <option v-for="school in schools" :key="school.id" :value="school.id">
-                  {{ school.name }}
-                </option>
-              </select>
+                :options="schoolOptions"
+                label="Filter by School"
+                placeholder="Search schools..."
+                @update:model-value="fetchData"
+              />
               <span class="text-sm text-neutral-500">{{ filteredClasses.length }} classes total</span>
             </div>
           </div>
@@ -191,8 +187,9 @@ import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';
-import AssignEvaluatorModal from '../../components/coordinator/AssignEvaluatorModal.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
+import AppAutocomplete from '../../components/ui/AppAutocomplete.vue';
+import AssignEvaluatorModal from '../../components/coordinator/AssignEvaluatorModal.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
 
 const authStore = useAuthStore();
@@ -263,7 +260,7 @@ const currentUser = computed(() =>
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const selectedSchoolId = ref<number | ''>('');
+const selectedSchoolId = ref<number | null>(null);
 const stats = ref({
   unassignedClasses: 0,
   assignedClasses: 0,
@@ -354,9 +351,14 @@ function progressBarVariant(progress: number): 'default' | 'green' | 'red' {
 }
 
 const filteredClasses = computed(() => {
-  if (!selectedSchoolId.value) return classes.value;
+  if (selectedSchoolId.value === null) return classes.value;
   return classes.value.filter((c) => c.school.id === selectedSchoolId.value);
 });
+
+const schoolOptions = computed(() => [
+  { value: null, label: 'All Schools' },
+  ...schools.value.map((school) => ({ value: school.id, label: school.name })),
+]);
 
 function openAssignModal(cls: ClassRow) {
   selectedClass.value = cls;

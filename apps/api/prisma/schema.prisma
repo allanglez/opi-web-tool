@@ -320,13 +320,13 @@ model ClassNote {
   id        Int      @id @default(autoincrement())
   classId   Int      @map("class_id")
   note      String   @db.NVarChar(Max)
-  updatedBy Int      @map("updated_by")
-  updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime2
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime2
 
   class  Class @relation(fields: [classId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  author User  @relation(fields: [updatedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  author User  @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([classId, updatedBy])
+  @@index([classId])
   @@map("class_notes")
 }
 

@@ -16,9 +16,9 @@
     <section class="mb-8">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard :value="userStats.total" label="Total Users" variant="default" />
-        <StatCard :value="userStats.admins" label="Administrators" variant="red" />
+        <StatCard :value="userStats.admins" label="Administrators" variant="purple" />
         <StatCard :value="userStats.coordinators" label="Coordinators" variant="green" />
-        <StatCard :value="userStats.evaluators" label="Evaluators" variant="red" />
+        <StatCard :value="userStats.evaluators" label="Evaluators" variant="blue" />
       </div>
     </section>
 
@@ -410,15 +410,15 @@ function getAuthHeaders() {
 function getRoleBadgeClass(role: string): string {
   switch (role) {
     case 'ADMIN':
-      return 'bg-red-100 text-red-700 border border-red-300';
+      return 'bg-purple-100 text-purple-700';
     case 'COORDINATOR':
-      return 'bg-green-100 text-green-700 border border-green-300';
+      return 'bg-green-100 text-green-700 border';
     case 'EVALUATOR':
-      return 'bg-blue-100 text-blue-700 border border-blue-300';
+      return 'bg-blue-100 text-blue-700 border';
     case 'PENDING':
-      return 'bg-yellow-100 text-yellow-700 border border-yellow-300';
+      return 'bg-yellow-100 text-yellow-700 border';
     default:
-      return 'bg-neutral-100 text-neutral-700 border border-neutral-300';
+      return 'bg-neutral-100 text-neutral-700 border';
   }
 }
 

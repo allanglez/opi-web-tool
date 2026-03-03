@@ -1,6 +1,6 @@
 <template>
   <AppShell :user="currentUser">
-    <EvaluatorSubNav />
+    <component :is="subNavComponent" />
 
     <div v-if="isLoading" class="flex justify-center items-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
@@ -16,33 +16,21 @@
       <section class="mt-6 mb-6">
         <BaseCard>
           <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wider mb-4">My Class Assignments</h2>
-          <div class="flex flex-wrap gap-4">
-            <div class="flex items-center gap-2">
-              <label class="text-sm font-medium text-neutral-600 uppercase tracking-wider">School:</label>
-              <select
-                v-model="selectedSchoolId"
-                class="border border-neutral-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-                @change="onFilterChange"
-              >
-                <option :value="null">All Schools</option>
-                <option v-for="school in availableSchools" :key="school.id" :value="school.id">
-                  {{ school.name }}
-                </option>
-              </select>
-            </div>
-            <div class="flex items-center gap-2">
-              <label class="text-sm font-medium text-neutral-600 uppercase tracking-wider">Class:</label>
-              <select
-                v-model="selectedClassId"
-                class="border border-neutral-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-                @change="onFilterChange"
-              >
-                <option :value="null">All Classes</option>
-                <option v-for="cls in filteredClasses" :key="cls.id" :value="cls.id">
-                  {{ cls.classCode }}
-                </option>
-              </select>
-            </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <AppAutocomplete
+              v-model="selectedSchoolId"
+              :options="schoolOptions"
+              label="School"
+              placeholder="Search schools..."
+              @update:model-value="onFilterChange"
+            />
+            <AppAutocomplete
+              v-model="selectedClassId"
+              :options="classOptions"
+              label="Class"
+              placeholder="Search classes..."
+              @update:model-value="onFilterChange"
+            />
           </div>
         </BaseCard>
       </section>
@@ -131,7 +119,7 @@
               class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50"
               @click="openClassNotes(cls)"
             >
-              Add Class Notes
+              View/Add Notes
             </button>
             <button
               class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50"
@@ -140,6 +128,7 @@
               {{ expandedClasses.has(cls.id) ? 'Hide Students' : 'Show Students' }}
             </button>
             <router-link
+              v-if="!isCoordinatorOrAdmin"
               :to="{ name: 'evaluator-assignments', query: { schoolId: cls.school.id } }"
               class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50"
             >
@@ -218,6 +207,36 @@
       </section>
     </template>
 
+    <!-- Pagination -->
+    <section v-if="isCoordinatorOrAdmin && totalPages > 1" class="mb-6">
+      <BaseCard>
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-neutral-600">
+            Showing {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalCount) }} of {{ totalCount }} classes
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              :disabled="currentPage === 1"
+              class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-3 py-1.5 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="changePage(currentPage - 1)"
+            >
+              Previous
+            </button>
+            <span class="text-sm text-neutral-600">
+              Page {{ currentPage }} of {{ totalPages }}
+            </span>
+            <button
+              :disabled="currentPage === totalPages"
+              class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-3 py-1.5 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="changePage(currentPage + 1)"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </BaseCard>
+    </section>
+
     <!-- Class Notes Modal -->
     <ClassNotesModal
       v-if="notesModalClass"
@@ -233,10 +252,13 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
+import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
+import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';
 import ClassNotesModal from '../../components/evaluator/ClassNotesModal.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
+import AppAutocomplete from '../../components/ui/AppAutocomplete.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
 
 const router = useRouter();
@@ -254,6 +276,23 @@ const error = ref<string | null>(null);
 const selectedSchoolId = ref<number | null>(null);
 const selectedClassId = ref<number | null>(null);
 const expandedClasses = ref<Set<number>>(new Set());
+const currentPage = ref(1);
+const pageSize = ref(25);
+const totalCount = ref(0);
+const totalPages = ref(0);
+
+const isCoordinatorOrAdmin = computed(() => {
+  return authStore.user?.roles?.includes('COORDINATOR') || authStore.user?.roles?.includes('ADMIN');
+});
+
+const subNavComponent = computed(() => {
+  if (authStore.user?.roles?.includes('ADMIN')) {
+    return AdminSubNav;
+  } else if (authStore.user?.roles?.includes('COORDINATOR')) {
+    return CoordinatorSubNav;
+  }
+  return EvaluatorSubNav;
+});
 
 interface ClassStudent {
   id: number;
@@ -340,6 +379,22 @@ const filteredClasses = computed(() => {
   return allAvailableClasses.value.filter((c) => c.schoolId === selectedSchoolId.value);
 });
 
+const schoolOptions = computed(() => [
+  { value: null, label: 'All Schools' },
+  ...availableSchools.value.map((school) => ({
+    value: school.id,
+    label: school.name,
+  })),
+]);
+
+const classOptions = computed(() => [
+  { value: null, label: 'All Classes' },
+  ...filteredClasses.value.map((cls) => ({
+    value: cls.id,
+    label: cls.classCode,
+  })),
+]);
+
 function classStatusStyle(status: string): string {
   switch (status) {
     case 'COMPLETED': return 'bg-green-100 text-green-800';
@@ -420,6 +475,8 @@ async function handleStudentAction(student: ClassStudent, _cls: ClassDetail) {
 }
 
 function onFilterChange() {
+  // Reset to page 1 when filters change
+  currentPage.value = 1;
   // Reset class filter when school changes
   if (selectedSchoolId.value) {
     const validClassIds = filteredClasses.value.map((c) => c.id);
@@ -430,11 +487,24 @@ function onFilterChange() {
   fetchClassView();
 }
 
+function changePage(page: number) {
+  if (page < 1 || page > totalPages.value) return;
+  currentPage.value = page;
+  isLoading.value = true;
+  fetchClassView();
+}
+
 async function fetchClassView() {
   try {
     const params = new URLSearchParams();
     if (selectedSchoolId.value) params.set('schoolId', String(selectedSchoolId.value));
     if (selectedClassId.value) params.set('classId', String(selectedClassId.value));
+    
+    // Add pagination params for coordinators/admins
+    if (isCoordinatorOrAdmin.value) {
+      params.set('page', String(currentPage.value));
+      params.set('pageSize', String(pageSize.value));
+    }
 
     const url = `${API_BASE}/evaluator/class-view${params.toString() ? '?' + params.toString() : ''}`;
     const res = await fetch(url, {
@@ -457,6 +527,14 @@ async function fetchClassView() {
     availableSchools.value = data.availableSchools;
     allAvailableClasses.value = data.availableClasses;
     classes.value = data.classes;
+    
+    // Handle pagination data for coordinators/admins
+    if (data.pagination) {
+      totalCount.value = data.pagination.totalCount;
+      totalPages.value = data.pagination.totalPages;
+      currentPage.value = data.pagination.currentPage;
+    }
+    
     error.value = null;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'An error occurred';

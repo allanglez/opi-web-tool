@@ -36,10 +36,23 @@ export class EvaluatorController {
     @Get('class-view')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     async getClassView(
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: { id: number; roles: string[] },
         @Query('schoolId') schoolId?: string,
         @Query('classId') classId?: string,
+        @Query('page') page?: string,
+        @Query('pageSize') pageSize?: string,
     ) {
+        const isCoordinatorOrAdmin = user.roles.includes('COORDINATOR') || user.roles.includes('ADMIN');
+        
+        if (isCoordinatorOrAdmin) {
+            return this.evaluatorService.getClassViewAll(
+                schoolId ? parseInt(schoolId, 10) : undefined,
+                classId ? parseInt(classId, 10) : undefined,
+                page ? parseInt(page, 10) : 1,
+                pageSize ? parseInt(pageSize, 10) : 25,
+            );
+        }
+        
         return this.evaluatorService.getClassView(
             user.id,
             schoolId ? parseInt(schoolId, 10) : undefined,

@@ -6,7 +6,7 @@ RUN corepack enable
 FROM base AS build
 WORKDIR /app
 COPY . .
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile=false
 RUN pnpm run build --filter=api
 
 FROM base AS production

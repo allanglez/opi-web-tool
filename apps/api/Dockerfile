@@ -7,7 +7,7 @@ FROM base AS build
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile=false
-RUN pnpm run build --filter=api
+RUN pnpm --filter api build
 
 FROM base AS production
 WORKDIR /app

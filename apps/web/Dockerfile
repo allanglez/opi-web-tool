@@ -7,7 +7,7 @@ FROM base AS build
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile=false
-RUN pnpm run build --filter=web
+RUN pnpm --filter web build
 
 FROM nginx:stable-alpine AS production
 # Copy static files to nginx html directory

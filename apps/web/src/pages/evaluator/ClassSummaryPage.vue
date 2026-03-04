@@ -182,7 +182,7 @@ const canSubmit = ref(false);
 const isSubmitted = ref(false);
 const exporting = ref(false);
 const chartCanvas = ref<HTMLCanvasElement | null>(null);
-let chartInstance: Chart | null = null;
+let chartInstance: Chart<'bar', number[], string> | null = null;
 
 interface StudentListItem {
   id: number;
@@ -325,7 +325,7 @@ const renderChart = async () => {
 
   const levels = summary.value.scoreDistribution.levels;
   const labels = Object.keys(levels);
-  const data = Object.values(levels);
+  const data = Object.values(levels).map((value) => Number(value));
   const colors = labels.map((level: string) => getColorForLevel(level));
 
   chartInstance = new Chart(chartCanvas.value, {

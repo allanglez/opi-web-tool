@@ -155,14 +155,16 @@ describe('AudioRecorder', () => {
     await wrapper.vm.$nextTick();
 
     // Find and click the stop button
-    const stopButton = wrapper.find('button').filter(button => button.text().includes('Stop'));
-    expect(stopButton.exists()).toBe(true);
+    const stopButton = wrapper.findAll('button').find((button) => button.text().includes('Stop'));
+    expect(stopButton).toBeDefined();
+    if (!stopButton) throw new Error('Stop button not found');
 
     await stopButton.trigger('click');
 
     expect(mockStopRecording).toHaveBeenCalled();
-    expect(wrapper.emitted('audioRecorded')).toBeTruthy();
-    expect(wrapper.emitted('audioRecorded')[0]).toEqual([mockAudioBlob]);
+    const audioRecordedEvents = wrapper.emitted('audioRecorded');
+    expect(audioRecordedEvents).toBeTruthy();
+    expect(audioRecordedEvents?.[0]).toEqual([mockAudioBlob]);
   });
 
   it('should display error message when recording fails', async () => {

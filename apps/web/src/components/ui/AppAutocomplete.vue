@@ -40,7 +40,7 @@
     >
       <div
         v-for="(option, index) in filteredOptions"
-        :key="option.value"
+        :key="option.value ?? `option-${index}`"
         class="px-3 py-2 text-sm cursor-pointer hover:bg-neutral-100 transition-colors"
         :class="{
           'bg-neutral-100': index === highlightedIndex,

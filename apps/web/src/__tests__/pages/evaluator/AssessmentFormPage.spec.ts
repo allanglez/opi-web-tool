@@ -40,11 +40,12 @@ describe('AssessmentFormPage Audio Requirements', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // Find the Complete button
-    const completeButton = wrapper.find('button').filter(button => 
+    const completeButton = wrapper.findAll('button').find((button) =>
       button.text().includes('Complete') || button.text().includes('Mark as Complete')
     );
 
-    expect(completeButton.exists()).toBe(true);
+    expect(completeButton).toBeDefined();
+    if (!completeButton) throw new Error('Complete button not found');
     // Should be disabled if no audio uploaded and targeting COMPLETED
     expect(completeButton.attributes('disabled')).toBeDefined();
   });
@@ -84,11 +85,12 @@ describe('AssessmentFormPage Audio Requirements', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // Find the Complete button
-    const completeButton = wrapper.find('button').filter(button => 
+    const completeButton = wrapper.findAll('button').find((button) =>
       button.text().includes('Complete') || button.text().includes('Mark as Complete')
     );
 
-    expect(completeButton.exists()).toBe(true);
+    expect(completeButton).toBeDefined();
+    if (!completeButton) throw new Error('Complete button not found');
     // Should be enabled when audio is uploaded
     expect(completeButton.attributes('disabled')).toBeUndefined();
   });
@@ -120,21 +122,18 @@ describe('AssessmentFormPage Audio Requirements', () => {
     await wrapper.vm.$nextTick();
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Find and select ABSENT status option
-    const absentOption = wrapper.find('option').filter(option => 
-      option.text().includes('Absent') || option.attributes('value') === 'ABSENT'
-    );
-    
-    if (absentOption.exists()) {
-      await absentOption.setSelected(true);
+    const statusSelect = wrapper.find('select');
+    if (statusSelect.exists()) {
+      await statusSelect.setValue('ABSENT');
     }
 
     // Find the Complete button
-    const completeButton = wrapper.find('button').filter(button => 
+    const completeButton = wrapper.findAll('button').find((button) =>
       button.text().includes('Complete') || button.text().includes('Mark as Complete')
     );
 
-    expect(completeButton.exists()).toBe(true);
+    expect(completeButton).toBeDefined();
+    if (!completeButton) throw new Error('Complete button not found');
     // Should be enabled when ABSENT is selected even without audio
     expect(completeButton.attributes('disabled')).toBeUndefined();
   });
@@ -176,11 +175,11 @@ describe('AssessmentFormPage Audio Requirements', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // Try to complete without audio
-    const completeButton = wrapper.find('button').filter(button => 
+    const completeButton = wrapper.findAll('button').find((button) =>
       button.text().includes('Complete') || button.text().includes('Mark as Complete')
     );
 
-    if (completeButton.exists() && !completeButton.attributes('disabled')) {
+    if (completeButton && !completeButton.attributes('disabled')) {
       await completeButton.trigger('click');
       
       // Wait for error handling
@@ -246,11 +245,12 @@ describe('AssessmentFormPage Audio Requirements', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // Find the Complete button
-    const completeButton = wrapper.find('button').filter(button => 
+    const completeButton = wrapper.findAll('button').find((button) =>
       button.text().includes('Complete') || button.text().includes('Mark as Complete')
     );
 
-    expect(completeButton.exists()).toBe(true);
+    expect(completeButton).toBeDefined();
+    if (!completeButton) throw new Error('Complete button not found');
     expect(completeButton.attributes('disabled')).toBeUndefined();
 
     // Simulate successful completion
@@ -260,7 +260,7 @@ describe('AssessmentFormPage Audio Requirements', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     // Should show success state or redirect
-    expect(wrapper.vm.assessment?.status).toBe('COMPLETED');
+    expect((wrapper.vm as any).assessment?.status).toBe('COMPLETED');
   });
 
   it('should handle audio upload failure gracefully', async () => {
@@ -302,11 +302,12 @@ describe('AssessmentFormPage Audio Requirements', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // Simulate audio upload
-    const uploadButton = wrapper.find('button').filter(button => 
+    const uploadButton = wrapper.findAll('button').find((button) =>
       button.text().includes('Upload Mock Audio')
     );
 
-    expect(uploadButton.exists()).toBe(true);
+    expect(uploadButton).toBeDefined();
+    if (!uploadButton) throw new Error('Upload button not found');
     await uploadButton.trigger('click');
 
     // Wait for error handling

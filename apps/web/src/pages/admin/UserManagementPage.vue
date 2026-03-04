@@ -399,8 +399,12 @@ const canEditUser = computed(() => {
 const showDeactivateModal = ref(false);
 const deactivatingUser = ref<UserItem | null>(null);
 
-function getAuthHeaders() {
+async function getAuthHeaders() {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = await authStore.getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   if (authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
@@ -427,7 +431,7 @@ async function fetchUsers() {
   error.value = null;
   try {
     const response = await fetch(`${API_BASE}/admin/users`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to fetch users');
@@ -448,7 +452,7 @@ async function createUser() {
 
     const response = await fetch(`${API_BASE}/admin/users`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({
         firstName,
@@ -491,7 +495,7 @@ async function updateUser() {
 
     const response = await fetch(`${API_BASE}/admin/users/${editingUserId.value}`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({
         firstName,
@@ -523,7 +527,7 @@ async function deactivateUser() {
   try {
     const response = await fetch(`${API_BASE}/admin/users/${deactivatingUser.value.id}/deactivate`, {
       method: 'PATCH',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to deactivate user');
@@ -539,7 +543,7 @@ async function activateUser(user: UserItem) {
   try {
     const response = await fetch(`${API_BASE}/admin/users/${user.id}/activate`, {
       method: 'PATCH',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to activate user');

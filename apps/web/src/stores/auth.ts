@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { getAuth0AccessToken, logoutWithAuth0 } from '../auth/auth0';
+import { useAuth0 } from '@auth0/auth0-vue';
 import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
 
 const API_BASE =
@@ -19,6 +19,7 @@ export interface User {
 }
 
 export const useAuthStore = defineStore('auth', () => {
+  const { getAccessTokenSilently, logout: auth0Logout } = useAuth0();
   const user = ref<User | null>(null);
   const isAuthenticated = ref(false);
 
@@ -60,7 +61,8 @@ export const useAuthStore = defineStore('auth', () => {
       const headers: Record<string, string> = {};
 
       if (isAuth0Mode) {
-        token.value = await getAuth0AccessToken();
+        token.value = await getAccessTokenSilently();
+        console.log('Auth0 Access Token format:', token.value ? token.value.substring(0, 15) + '...' : 'null');
         if (token.value) {
           headers.Authorization = `Bearer ${token.value}`;
         }
@@ -79,7 +81,9 @@ export const useAuthStore = defineStore('auth', () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch user profile');
+        const errorText = await response.text();
+        console.error('Backend /me failed:', response.status, errorText);
+        throw new Error(`Failed to fetch user profile: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
@@ -96,6 +100,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  const getToken = async () => {
+    if (!isAuth0Mode) return token.value;
+    try {
+      const freshToken = await getAccessTokenSilently();
+      token.value = freshToken;
+      return freshToken;
+    } catch (err) {
+      console.error('Auth0 getAccessTokenSilently failed:', err);
+      return null;
+    }
+  };
+
   const logout = () => {
     user.value = null;
     isAuthenticated.value = false;
@@ -103,7 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null;
 
     if (isAuth0Mode) {
-      logoutWithAuth0({
+      auth0Logout({
         logoutParams: {
           returnTo: `${window.location.origin}/login`,
         },
@@ -123,6 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
     hasAnyRole,
     getDefaultRoute,
     fetchMe,
+    getToken,
     logout,
     token,
   };

@@ -249,7 +249,7 @@ async function handleStudentAction(student: DashboardData['nextStudents'][0]) {
   try {
     const res = await fetch(`${API_BASE}/assessments/start`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({
         studentId: student.studentId,
@@ -270,8 +270,12 @@ async function handleStudentAction(student: DashboardData['nextStudents'][0]) {
   }
 }
 
-function getAuthHeaders(): Record<string, string> {
+async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = await authStore.getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   if (authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
@@ -281,7 +285,7 @@ function getAuthHeaders(): Record<string, string> {
 async function fetchDashboard() {
   try {
     const res = await fetch(`${API_BASE}/evaluator/dashboard`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
 

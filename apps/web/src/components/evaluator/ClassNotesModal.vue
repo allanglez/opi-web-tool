@@ -151,8 +151,12 @@ function formatDateTime(dateStr: string): string {
   return `${month}-${day}, ${h}:${minutes} ${ampm}`;
 }
 
-function getAuthHeaders(): Record<string, string> {
+async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = await authStore.getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   if (authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
@@ -162,7 +166,7 @@ function getAuthHeaders(): Record<string, string> {
 async function fetchNotes() {
   try {
     const res = await fetch(`${API_BASE}/evaluator/classes/${props.classInfo.id}/notes`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     if (res.ok) {
@@ -184,7 +188,7 @@ async function addNote() {
   try {
     const res = await fetch(`${API_BASE}/evaluator/classes/${props.classInfo.id}/notes`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ note: newNoteText.value }),
     });

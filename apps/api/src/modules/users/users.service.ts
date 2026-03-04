@@ -45,7 +45,7 @@ export class UsersService {
     });
 
     // If not found by externalAuthId, check if a pre-created user exists with this email
-    if (!user) {
+    if (!user && email) {
       const existingUserByEmail = await this.prisma.user.findUnique({
         where: { email },
         include: {
@@ -85,7 +85,7 @@ export class UsersService {
         where: { externalAuthId },
         data: {
           lastLoginAt: new Date(),
-          email,
+          ...(email && { email }),
           ...(firstName && { firstName }),
           ...(lastName && { lastName }),
         },
@@ -105,20 +105,23 @@ export class UsersService {
       where: { name: 'PENDING' },
     });
 
+    if (!pendingRole) {
+      throw new Error('PENDING role not found in database');
+    }
+
     user = await this.prisma.user.create({
       data: {
         externalAuthId,
-        email,
+        email: email || '', // Fallback to empty string if email is undefined to satisfy Prisma schema
         firstName: firstName || '',
         lastName: lastName || '',
         isActive: true,
-        userRoles: pendingRole
-          ? {
-              create: {
-                roleId: pendingRole.id,
-              },
-            }
-          : undefined,
+        lastLoginAt: new Date(),
+        userRoles: {
+          create: {
+            roleId: pendingRole.id,
+          },
+        },
       },
       include: {
         userRoles: {

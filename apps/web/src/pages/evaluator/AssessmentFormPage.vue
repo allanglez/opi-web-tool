@@ -732,7 +732,7 @@ async function submitReEvaluation() {
   try {
     const res = await fetch(`${API_BASE}/assessments/${assessment.value.id}/re-evaluate`, {
       method: 'PATCH',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({
         opiLevelId: reEvalForm.value.opiLevelId,
@@ -831,9 +831,13 @@ watch(
   },
 );
 
-function getAuthHeaders(includeContentType = true): Record<string, string> {
+async function getAuthHeaders(includeContentType = true): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   if (includeContentType) headers['Content-Type'] = 'application/json';
+  const token = await authStore.getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   if (authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
@@ -873,7 +877,7 @@ async function ensureRecordingBlobUrl(recording: AudioRecording): Promise<string
   recordingLoading.value = { ...recordingLoading.value, [recording.id]: true };
   try {
     const response = await fetch(recording.downloadUrl, {
-      headers: getAuthHeaders(false),
+      headers: await getAuthHeaders(false),
       credentials: 'include',
     });
 
@@ -966,7 +970,7 @@ async function handleFileUpload(event: Event) {
 
     const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio`, {
       method: 'POST',
-      headers: getAuthHeaders(false),
+      headers: await getAuthHeaders(false),
       credentials: 'include',
       body: formData,
     });
@@ -1016,7 +1020,7 @@ async function handleAudioRecorded(blob: Blob) {
     
     const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio`, {
       method: 'POST',
-      headers: getAuthHeaders(false),
+      headers: await getAuthHeaders(false),
       credentials: 'include',
       body: formData,
     });
@@ -1041,7 +1045,7 @@ async function fetchAudioRecordings() {
   
   try {
     const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio`, {
-      headers: getAuthHeaders(false),
+      headers: await getAuthHeaders(false),
       credentials: 'include',
     });
 
@@ -1070,7 +1074,7 @@ async function fetchAssessment() {
   try {
     // Fetch assessment
     const res = await fetch(`${API_BASE}/assessments/${assessmentId}`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     
@@ -1083,7 +1087,7 @@ async function fetchAssessment() {
 
     // Fetch OPI levels
     const levelsRes = await fetch(`${API_BASE}/assessments/opi-levels`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     if (levelsRes.ok) {
@@ -1112,7 +1116,7 @@ async function saveDraft() {
   try {
     const res = await fetch(`${API_BASE}/assessments/${assessment.value.id}`, {
       method: 'PATCH',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({
         opiLevelId: form.value.opiLevelId,
@@ -1160,7 +1164,7 @@ async function markAbsent() {
   try {
     const res = await fetch(`${API_BASE}/assessments/${assessment.value.id}/mark-absent`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
 
@@ -1202,7 +1206,7 @@ async function handleSubmit() {
   try {
     const res = await fetch(`${API_BASE}/assessments/${assessment.value.id}/complete`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({
         opiLevelId: form.value.opiLevelId,

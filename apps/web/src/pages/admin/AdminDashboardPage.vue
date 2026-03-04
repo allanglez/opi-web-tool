@@ -143,8 +143,12 @@ const stats = ref<DashboardStats>({
   recentActivity: [],
 });
 
-function getAuthHeaders() {
+async function getAuthHeaders() {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = await authStore.getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   if (authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
@@ -156,7 +160,7 @@ async function fetchDashboard() {
   error.value = null;
   try {
     const response = await fetch(`${API_BASE}/admin/dashboard/stats`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to load dashboard data');

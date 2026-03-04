@@ -244,8 +244,12 @@ function getStatusClass(student: StudentWithAssessment): string {
   }
 }
 
-function getAuthHeaders(): Record<string, string> {
+async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = await authStore.getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   if (authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
@@ -259,7 +263,7 @@ async function fetchStudents() {
 
   try {
     const res = await fetch(`${API_BASE}/evaluator/classes/${classId}/students`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     
@@ -284,7 +288,7 @@ async function fetchStudents() {
 
     // Get cycle ID from active cycle
     const cycleRes = await fetch(`${API_BASE}/cycles/active`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
     });
     if (cycleRes.ok) {
@@ -305,7 +309,7 @@ async function startAssessment(student: StudentWithAssessment) {
   try {
     const res = await fetch(`${API_BASE}/assessments/start`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({
         studentId: student.id,

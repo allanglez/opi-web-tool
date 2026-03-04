@@ -40,7 +40,7 @@ export function installAuth0(app: App): Auth0VueClient | null {
     authorizationParams: {
       audience,
       redirect_uri: redirectUri,
-      scope: 'openid profile email',
+      scope: 'openid profile email offline_access',
     },
     cacheLocation: 'localstorage',
     useRefreshTokens: true,

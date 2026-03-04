@@ -107,12 +107,13 @@
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
-import { loginWithAuth0Redirect } from '../../auth/auth0';
+import { useAuth0 } from '@auth0/auth0-vue';
 import { isAuth0Mode, isMockAuthMode } from '../../auth/mode';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const { loginWithRedirect } = useAuth0();
 const emailAddress = ref('');
 
 const isMockMode = isMockAuthMode;
@@ -146,7 +147,7 @@ const loginWithAuth0 = async () => {
   const loginHint = emailAddress.value.trim();
 
   try {
-    await loginWithAuth0Redirect(
+    await loginWithRedirect(
       loginHint
         ? {
             authorizationParams: {

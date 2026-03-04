@@ -34,13 +34,13 @@
           <span class="mx-2 h-3.5 w-px bg-neutral-300"></span>
 
           <!-- Menu button -->
-          <button 
+          <!-- <button 
             class="inline-flex items-center gap-1 hover:text-yukon-navy transition-colors"
             @click="toggleMenu"
           >
             <Menu class="w-3.5 h-3.5" />
             <span>Menu</span>
-          </button>
+          </button> -->
         </div>
       </div>
 
@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { LogOut, Menu, User } from 'lucide-vue-next';
+import { LogOut, User } from 'lucide-vue-next';
 
 interface Props {
   user?: {
@@ -86,9 +86,9 @@ const userDisplayName = computed(() => {
   return props.user.email || 'User';
 });
 
-const toggleMenu = () => {
-  emit('toggleMenu');
-};
+// const toggleMenu = () => {
+//   emit('toggleMenu');
+// };
 
 const requestLogout = () => {
   emit('logout');

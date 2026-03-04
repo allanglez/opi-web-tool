@@ -1,5 +1,4 @@
 import { useAuthStore } from '../stores/auth';
-import { getAuth0AccessToken } from '../auth/auth0';
 import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
 
 const API_BASE =
@@ -33,11 +32,13 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   if (isAuth0Mode) {
     let token = authStore.token;
 
+    // If token is missing but we're in Auth0 mode, try to fetch it via the store
     if (!token) {
+      // Use the helper method to get a fresh token silently
       try {
-        token = await getAuth0AccessToken();
-        authStore.token = token;
-      } catch {
+        token = await authStore.getToken();
+      } catch (err) {
+        console.error('Failed to grab token for API request', err);
         token = null;
       }
     }

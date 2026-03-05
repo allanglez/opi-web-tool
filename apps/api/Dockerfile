@@ -19,4 +19,4 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 
 EXPOSE 3000
-CMD [ "node", "dist/main.js" ]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --config ./prisma/prisma.config.ts && node dist/main.js"]

@@ -81,7 +81,7 @@ services:
       AUDIO_S3_SIGNED_URL_EXPIRES_SECONDS: ${AUDIO_S3_SIGNED_URL_EXPIRES_SECONDS:-3600}
 
     ports:
-      - "3000:3000"
+      - "3001:3000"
 
   web:
     build:

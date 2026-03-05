@@ -40,6 +40,7 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: opi-api
     restart: unless-stopped
+    command: ["sh", "-c", "sleep infinity"]
     depends_on:
       mssql:
         condition: service_healthy

@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaMssql } from '@prisma/adapter-mssql';
 
 config();
@@ -320,17 +320,69 @@ async function main() {
 
     let usersCreated = 0;
     for (const userData of testUsers) {
-      const user = await prisma.user.upsert({
-        where: { externalAuthId: userData.externalAuthId },
-        update: {},
-        create: {
-          externalAuthId: userData.externalAuthId,
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          isActive: true,
+      const normalizedEmail = userData.email.trim().toLowerCase();
+
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { externalAuthId: userData.externalAuthId },
+            { email: normalizedEmail },
+          ],
         },
       });
+
+      if (user) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            externalAuthId: userData.externalAuthId,
+            email: normalizedEmail,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            isActive: true,
+          },
+        });
+      } else {
+        try {
+          user = await prisma.user.create({
+            data: {
+              externalAuthId: userData.externalAuthId,
+              email: normalizedEmail,
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              isActive: true,
+            },
+          });
+        } catch (error) {
+          if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+            throw error;
+          }
+
+          const conflictingUser = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { externalAuthId: userData.externalAuthId },
+                { email: normalizedEmail },
+              ],
+            },
+          });
+
+          if (!conflictingUser) {
+            throw error;
+          }
+
+          user = await prisma.user.update({
+            where: { id: conflictingUser.id },
+            data: {
+              externalAuthId: userData.externalAuthId,
+              email: normalizedEmail,
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              isActive: true,
+            },
+          });
+        }
+      }
 
       await prisma.userRole.upsert({
         where: {

@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 
@@ -9,7 +9,10 @@ export class AuthController {
   ) {}
 
   @Get()
-  async getMe(@CurrentUser() user: AuthUser) {
+  async getMe(
+    @CurrentUser() user: AuthUser,
+    @Req() req: { headers: { authorization?: string } },
+  ) {
     // If mock auth, fetch user by ID
     if (user.mockAuth) {
       const fullUser = await this.authService.getUserById(user.id);
@@ -20,9 +23,13 @@ export class AuthController {
     }
 
     // If JWT auth, validate and upsert user
+    const authHeader = req.headers.authorization;
+    const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
     const fullUser = await this.authService.validateAndGetUser(
       user.externalAuthId,
       user.email,
+      accessToken,
     );
 
     return fullUser;

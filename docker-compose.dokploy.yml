@@ -64,6 +64,7 @@ services:
       # API / CORS / auth mode
       CORS_ORIGIN: ${CORS_ORIGIN}
       AUTH_MOCK: ${AUTH_MOCK:-false}
+      SEED_INCLUDE_TEST_USERS: ${SEED_INCLUDE_TEST_USERS:-false}
 
       # Auth0 (required when AUTH_MOCK=false)
       AUTH0_ISSUER: ${AUTH0_ISSUER}

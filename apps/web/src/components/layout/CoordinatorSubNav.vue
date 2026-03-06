@@ -29,12 +29,15 @@ const tabs = [
   { name: 'coordinator-dashboard', label: 'Dashboard', to: { name: 'coordinator-dashboard' } },
   { name: 'coordinator-assignments', label: 'Assignments', to: { name: 'coordinator-assignments' } },
   { name: 'coordinator-scheduling', label: 'Scheduling', to: { name: 'coordinator-scheduling' } },
-  { name: 'evaluator-class-view', label: 'Class View', to: { name: 'evaluator-class-view' } },
+  { name: 'coordinator-class-view', label: 'Class View', to: { name: 'coordinator-class-view' } },
   { name: 'coordinator-data-verification', label: 'Data Verification', to: { name: 'coordinator-data-verification' } },
   // { name: 'coordinator-reports', label: 'Reports', to: { name: 'coordinator-reports' } },
 ];
 
 const isActive = (tabName: string): boolean => {
+  if (tabName === 'coordinator-class-view') {
+    return route.name === 'coordinator-class-view' || route.name === 'coordinator-class-students';
+  }
   return route.name === tabName;
 };
 

@@ -29,11 +29,14 @@ const tabs = [
   { name: 'admin-dashboard', label: 'Dashboard', to: { name: 'admin-dashboard' } },
   { name: 'admin-data-verification', label: 'Data Verification', to: { name: 'admin-data-verification' } },
   { name: 'admin-user-management', label: 'User Management', to: { name: 'admin-user-management' } },
-  { name: 'evaluator-class-view', label: 'Class View', to: { name: 'evaluator-class-view' } },
+  { name: 'admin-class-view', label: 'Class View', to: { name: 'admin-class-view' } },
   // { name: 'admin-progress-tracking', label: 'Progress Tracking', to: { name: 'admin-progress-tracking' } },
 ];
 
 const isActive = (tabName: string): boolean => {
+  if (tabName === 'admin-class-view') {
+    return route.name === 'admin-class-view' || route.name === 'admin-class-students';
+  }
   return route.name === tabName;
 };
 

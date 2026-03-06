@@ -1,10 +1,10 @@
 <template>
   <AppShell :user="currentUser">
-    <EvaluatorSubNav />
+    <component :is="subNavComponent" />
 
     <!-- Back Navigation -->
     <div class="mb-4 mt-4">
-      <router-link to="/evaluator/class-view" class="text-neutral-600 hover:text-neutral-800 text-sm flex items-center">
+      <router-link :to="classViewRoute" class="text-neutral-600 hover:text-neutral-800 text-sm flex items-center">
         <ChevronLeft class="w-4 h-4 mr-1" />
         Back to Class View
       </router-link>
@@ -124,6 +124,8 @@ import { useAuthStore } from '../../stores/auth';
 import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
+import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
+import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
@@ -139,6 +141,38 @@ const currentUser = computed(() => authStore.user ? {
   lastName: authStore.user.lastName,
   email: authStore.user.email,
 } : null);
+
+const routeName = computed(() => String(route.name || ''));
+
+const routeNamespace = computed<'admin' | 'coordinator' | 'evaluator'>(() => {
+  if (routeName.value.startsWith('admin-')) {
+    return 'admin';
+  }
+  if (routeName.value.startsWith('coordinator-')) {
+    return 'coordinator';
+  }
+  return 'evaluator';
+});
+
+const subNavComponent = computed(() => {
+  if (routeNamespace.value === 'admin') {
+    return AdminSubNav;
+  }
+  if (routeNamespace.value === 'coordinator') {
+    return CoordinatorSubNav;
+  }
+  return EvaluatorSubNav;
+});
+
+const classViewRoute = computed(() => {
+  if (routeNamespace.value === 'admin') {
+    return { name: 'admin-class-view' };
+  }
+  if (routeNamespace.value === 'coordinator') {
+    return { name: 'coordinator-class-view' };
+  }
+  return { name: 'evaluator-class-view' };
+});
 
 // State
 const isLoading = ref(true);

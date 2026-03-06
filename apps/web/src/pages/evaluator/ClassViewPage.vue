@@ -15,7 +15,7 @@
       <!-- Header + Filters -->
       <section class="mt-6 mb-6">
         <BaseCard>
-          <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wider mb-4">My Class Assignments</h2>
+          <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wider mb-4">{{ pageHeading }}</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <AppAutocomplete
               v-model="selectedSchoolId"
@@ -248,7 +248,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
@@ -261,6 +261,7 @@ import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import AppAutocomplete from '../../components/ui/AppAutocomplete.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -285,10 +286,27 @@ const isCoordinatorOrAdmin = computed(() => {
   return authStore.user?.roles?.includes('COORDINATOR') || authStore.user?.roles?.includes('ADMIN');
 });
 
+const routeName = computed(() => String(route.name || ''));
+
+const routeNamespace = computed<'admin' | 'coordinator' | 'evaluator'>(() => {
+  if (routeName.value.startsWith('admin-')) {
+    return 'admin';
+  }
+  if (routeName.value.startsWith('coordinator-')) {
+    return 'coordinator';
+  }
+  return 'evaluator';
+});
+
+const pageHeading = computed(() => {
+  return routeNamespace.value === 'evaluator' ? 'My Class Assignments' : 'Class View';
+});
+
 const subNavComponent = computed(() => {
-  if (authStore.user?.roles?.includes('ADMIN')) {
+  if (routeNamespace.value === 'admin') {
     return AdminSubNav;
-  } else if (authStore.user?.roles?.includes('COORDINATOR')) {
+  }
+  if (routeNamespace.value === 'coordinator') {
     return CoordinatorSubNav;
   }
   return EvaluatorSubNav;

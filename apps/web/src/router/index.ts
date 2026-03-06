@@ -85,6 +85,18 @@ const router = createRouter({
       meta: { roles: ['ADMIN'] },
     },
     {
+      path: '/admin/class-view',
+      name: 'admin-class-view',
+      component: () => import('../pages/evaluator/ClassViewPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/classes/:classId',
+      name: 'admin-class-students',
+      component: () => import('../pages/evaluator/ClassStudentsPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
       path: '/admin/progress-tracking',
       name: 'admin-progress-tracking',
       component: () => import('../pages/admin/ProgressTrackingPage.vue'),
@@ -143,6 +155,18 @@ const router = createRouter({
       path: '/coordinator/data-verification',
       name: 'coordinator-data-verification',
       component: () => import('../pages/coordinator/DataVerificationPage.vue'),
+      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/coordinator/class-view',
+      name: 'coordinator-class-view',
+      component: () => import('../pages/evaluator/ClassViewPage.vue'),
+      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+    },
+    {
+      path: '/coordinator/classes/:classId',
+      name: 'coordinator-class-students',
+      component: () => import('../pages/evaluator/ClassStudentsPage.vue'),
       meta: { roles: ['COORDINATOR', 'ADMIN'] },
     },
     // Evaluator routes

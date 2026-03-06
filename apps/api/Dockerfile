@@ -11,12 +11,12 @@ RUN pnpm --filter api run db:generate
 RUN pnpm --filter api build
 
 FROM base AS production
-WORKDIR /app
+WORKDIR /app/apps/api
 COPY --from=build /app/apps/api/dist ./dist
 COPY --from=build /app/apps/api/package.json ./package.json
 COPY --from=build /app/apps/api/prisma ./prisma
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/apps/api/node_modules ./node_modules
 
 EXPOSE 3000
-CMD ["sh", "-c", "./apps/api/node_modules/.bin/prisma migrate deploy --config ./prisma/prisma.config.ts && node dist/main.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --config ./prisma/prisma.config.ts && node dist/main.js"]

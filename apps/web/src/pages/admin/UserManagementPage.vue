@@ -264,6 +264,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
+import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -273,7 +274,6 @@ import ErrorState from '../../components/ui/ErrorState.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
 
-const API_BASE = '/api/v1';
 const authStore = useAuthStore();
 
 const currentUser = computed(() => authStore.user ? {
@@ -399,18 +399,6 @@ const canEditUser = computed(() => {
 const showDeactivateModal = ref(false);
 const deactivatingUser = ref<UserItem | null>(null);
 
-async function getAuthHeaders() {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = await authStore.getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  if (authStore.user?.id) {
-    headers['X-Mock-User-Id'] = String(authStore.user.id);
-  }
-  return headers;
-}
-
 function getRoleBadgeClass(role: string): string {
   switch (role) {
     case 'ADMIN':
@@ -430,12 +418,7 @@ async function fetchUsers() {
   isLoading.value = true;
   error.value = null;
   try {
-    const response = await fetch(`${API_BASE}/admin/users`, {
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
-    if (!response.ok) throw new Error('Failed to fetch users');
-    users.value = await response.json();
+    users.value = await api.get<UserItem[]>('/admin/users');
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error';
   } finally {
@@ -450,21 +433,12 @@ async function createUser() {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    const response = await fetch(`${API_BASE}/admin/users`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({
+    await api.post('/admin/users', {
         firstName,
         lastName,
         email: newUser.value.email.trim(),
         role: newUser.value.role,
-      }),
     });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.message || 'Failed to create user');
-    }
     showAddModal.value = false;
     newUser.value = { fullName: '', email: '', role: 'EVALUATOR' };
     await fetchUsers();
@@ -493,21 +467,12 @@ async function updateUser() {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    const response = await fetch(`${API_BASE}/admin/users/${editingUserId.value}`, {
-      method: 'PUT',
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({
+    await api.put(`/admin/users/${editingUserId.value}`, {
         firstName,
         lastName,
         email: editingUser.value.email.trim(),
         role: editingUser.value.role,
-      }),
     });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.message || 'Failed to update user');
-    }
     showEditModal.value = false;
     await fetchUsers();
   } catch (err) {
@@ -525,12 +490,7 @@ function confirmDeactivate(user: UserItem) {
 async function deactivateUser() {
   if (!deactivatingUser.value) return;
   try {
-    const response = await fetch(`${API_BASE}/admin/users/${deactivatingUser.value.id}/deactivate`, {
-      method: 'PATCH',
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
-    if (!response.ok) throw new Error('Failed to deactivate user');
+    await api.patch(`/admin/users/${deactivatingUser.value.id}/deactivate`);
     showDeactivateModal.value = false;
     deactivatingUser.value = null;
     await fetchUsers();
@@ -541,12 +501,7 @@ async function deactivateUser() {
 
 async function activateUser(user: UserItem) {
   try {
-    const response = await fetch(`${API_BASE}/admin/users/${user.id}/activate`, {
-      method: 'PATCH',
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
-    if (!response.ok) throw new Error('Failed to activate user');
+    await api.patch(`/admin/users/${user.id}/activate`);
     await fetchUsers();
   } catch (err) {
     alert(err instanceof Error ? err.message : 'Failed to activate user');

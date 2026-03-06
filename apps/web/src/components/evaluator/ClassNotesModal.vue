@@ -101,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useAuthStore } from '../../stores/auth';
+import { api } from '../../utils/api';
 
 interface ClassInfo {
   id: number;
@@ -131,9 +131,6 @@ defineEmits<{
   close: [];
 }>();
 
-const authStore = useAuthStore();
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
 const isLoading = ref(true);
 const isSaving = ref(false);
 const saveError = ref<string | null>(null);
@@ -151,27 +148,9 @@ function formatDateTime(dateStr: string): string {
   return `${month}-${day}, ${h}:${minutes} ${ampm}`;
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = await authStore.getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  if (authStore.user?.id) {
-    headers['X-Mock-User-Id'] = String(authStore.user.id);
-  }
-  return headers;
-}
-
 async function fetchNotes() {
   try {
-    const res = await fetch(`${API_BASE}/evaluator/classes/${props.classInfo.id}/notes`, {
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
-    if (res.ok) {
-      notes.value = await res.json();
-    }
+    notes.value = await api.get<ClassNote[]>(`/evaluator/classes/${props.classInfo.id}/notes`);
   } catch (e) {
     console.error('Failed to fetch notes:', e);
   } finally {
@@ -186,19 +165,9 @@ async function addNote() {
   saveError.value = null;
 
   try {
-    const res = await fetch(`${API_BASE}/evaluator/classes/${props.classInfo.id}/notes`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({ note: newNoteText.value }),
+    const newNote = await api.post<ClassNote>(`/evaluator/classes/${props.classInfo.id}/notes`, {
+      note: newNoteText.value,
     });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Failed to add note');
-    }
-
-    const newNote = await res.json();
     notes.value.unshift(newNote);
     newNoteText.value = '';
   } catch (e) {

@@ -121,6 +121,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ChevronLeft, Lock } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -131,7 +132,6 @@ import type { DataTableColumn } from '../../components/ui/data-table/types';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 // User info
 const currentUser = computed(() => authStore.user ? {
@@ -244,59 +244,41 @@ function getStatusClass(student: StudentWithAssessment): string {
   }
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = await authStore.getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  if (authStore.user?.id) {
-    headers['X-Mock-User-Id'] = String(authStore.user.id);
-  }
-  return headers;
-}
-
 // API calls
 async function fetchStudents() {
   const classId = route.params.classId;
   if (!classId) return;
 
   try {
-    const res = await fetch(`${API_BASE}/evaluator/classes/${classId}/students`, {
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
-    
-    if (res.status === 403) {
-      const err = await res.json();
-      if (err.error === 'NOT_ASSIGNED') {
-        router.push('/forbidden');
-        return;
-      }
-      if (err.error === 'CYCLE_NOT_APPROVED') {
-        router.push('/cycle-not-approved');
-        return;
-      }
-    }
-
-    if (!res.ok) throw new Error('Failed to fetch students');
-
-    const data = await res.json();
+    const data = await api.get<{
+      class: {
+        id: number;
+        classCode: string;
+        grade?: string;
+        teacher?: string;
+        school?: { name: string };
+        program?: { name: string };
+      };
+      students: StudentWithAssessment[];
+    }>(`/evaluator/classes/${classId}/students`);
     classInfo.value = data.class;
     students.value = data.students;
     error.value = null;
 
     // Get cycle ID from active cycle
-    const cycleRes = await fetch(`${API_BASE}/cycles/active`, {
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
-    if (cycleRes.ok) {
-      const cycle = await cycleRes.json();
-      cycleId.value = cycle?.id;
-    }
+    const cycle = await api.get<{ id?: number }>('/cycles/active');
+    cycleId.value = cycle?.id ?? null;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'An error occurred';
+    const message = e instanceof Error ? e.message : 'An error occurred';
+    if (message.includes('NOT_ASSIGNED')) {
+      router.push('/forbidden');
+      return;
+    }
+    if (message.includes('CYCLE_NOT_APPROVED')) {
+      router.push('/cycle-not-approved');
+      return;
+    }
+    error.value = message;
   } finally {
     isLoading.value = false;
   }
@@ -307,34 +289,19 @@ async function startAssessment(student: StudentWithAssessment) {
 
   startingId.value = student.id;
   try {
-    const res = await fetch(`${API_BASE}/assessments/start`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({
+    const assessment = await api.post<{ id: number }>('/assessments/start', {
         studentId: student.id,
         cycleId: cycleId.value,
-      }),
     });
-
-    if (res.status === 409) {
-      const err = await res.json();
-      if (err.error === 'ASSESSMENT_LOCKED') {
-        alert(`This student is currently being assessed by another evaluator.`);
-        await fetchStudents(); // Refresh to show updated lock status
-        return;
-      }
-    }
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Failed to start assessment');
-    }
-
-    const assessment = await res.json();
     router.push(`/evaluator/assessments/${assessment.id}`);
   } catch (e) {
-    alert(e instanceof Error ? e.message : 'Failed to start assessment');
+    const message = e instanceof Error ? e.message : 'Failed to start assessment';
+    if (message.includes('ASSESSMENT_LOCKED')) {
+      alert('This student is currently being assessed by another evaluator.');
+      await fetchStudents();
+      return;
+    }
+    alert(message);
   } finally {
     startingId.value = null;
   }

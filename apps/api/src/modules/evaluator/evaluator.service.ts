@@ -721,14 +721,31 @@ export class EvaluatorService {
     /**
      * Get all class notes for a class.
      */
-    async getClassNotes(classId: number, _userId: number) {
+    async getClassNotes(classId: number, evaluatorId: number, roles: string[] = []) {
         const cycle = await this.cyclesService.checkCycleApproval();
+        const hasFullAccess = roles.includes('COORDINATOR') || roles.includes('ADMIN');
 
         // Verify user has access to this class (evaluator, coordinator, or admin)
-        const assignment = await this.prisma.evaluatorAssignment.findFirst({
-            where: { classId, cycleId: cycle.id },
+        if (!hasFullAccess) {
+            const assignment = await this.prisma.evaluatorAssignment.findFirst({
+                where: {
+                    classId,
+                    evaluatorId,
+                    cycleId: cycle.id,
+                },
+            });
+
+            if (!assignment) {
+                throw new ForbiddenException({ statusCode: 403, message: 'Class not found or not accessible', error: 'NOT_ASSIGNED' });
+            }
+        }
+
+        const classEntity = await this.prisma.class.findUnique({
+            where: { id: classId },
+            select: { id: true, isIncluded: true },
         });
-        if (!assignment) {
+
+        if (!classEntity || !classEntity.isIncluded) {
             throw new ForbiddenException({ statusCode: 403, message: 'Class not found or not accessible', error: 'NOT_ASSIGNED' });
         }
 
@@ -761,14 +778,31 @@ export class EvaluatorService {
     /**
      * Create a new class note.
      */
-    async saveClassNotes(classId: number, userId: number, noteText: string) {
+    async saveClassNotes(classId: number, userId: number, roles: string[] = [], noteText: string) {
         const cycle = await this.cyclesService.checkCycleApproval();
+        const hasFullAccess = roles.includes('COORDINATOR') || roles.includes('ADMIN');
 
         // Verify user has access to this class
-        const assignment = await this.prisma.evaluatorAssignment.findFirst({
-            where: { classId, cycleId: cycle.id },
+        if (!hasFullAccess) {
+            const assignment = await this.prisma.evaluatorAssignment.findFirst({
+                where: {
+                    classId,
+                    evaluatorId: userId,
+                    cycleId: cycle.id,
+                },
+            });
+
+            if (!assignment) {
+                throw new ForbiddenException({ statusCode: 403, message: 'Class not found or not accessible', error: 'NOT_ASSIGNED' });
+            }
+        }
+
+        const classEntity = await this.prisma.class.findUnique({
+            where: { id: classId },
+            select: { id: true, isIncluded: true },
         });
-        if (!assignment) {
+
+        if (!classEntity || !classEntity.isIncluded) {
             throw new ForbiddenException({ statusCode: 403, message: 'Class not found or not accessible', error: 'NOT_ASSIGNED' });
         }
 
@@ -917,25 +951,28 @@ export class EvaluatorService {
     /**
      * Get students in a class with their assessment status.
      */
-    async getClassStudents(classId: number, evaluatorId: number) {
+    async getClassStudents(classId: number, evaluatorId: number, roles: string[] = []) {
         // Check cycle is approved
         const cycle = await this.cyclesService.checkCycleApproval();
+        const hasFullAccess = roles.includes('COORDINATOR') || roles.includes('ADMIN');
 
         // Check evaluator is assigned to this class
-        const assignment = await this.prisma.evaluatorAssignment.findFirst({
-            where: {
-                classId,
-                evaluatorId,
-                cycleId: cycle.id,
-            },
-        });
-
-        if (!assignment) {
-            throw new ForbiddenException({
-                statusCode: 403,
-                message: 'You are not assigned to this class',
-                error: 'NOT_ASSIGNED',
+        if (!hasFullAccess) {
+            const assignment = await this.prisma.evaluatorAssignment.findFirst({
+                where: {
+                    classId,
+                    evaluatorId,
+                    cycleId: cycle.id,
+                },
             });
+
+            if (!assignment) {
+                throw new ForbiddenException({
+                    statusCode: 403,
+                    message: 'You are not assigned to this class',
+                    error: 'NOT_ASSIGNED',
+                });
+            }
         }
 
         // Get class with students

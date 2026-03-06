@@ -64,19 +64,19 @@ export class EvaluatorController {
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     async getClassNotes(
         @Param('classId', ParseIntPipe) classId: number,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: { id: number; roles: string[] },
     ) {
-        return this.evaluatorService.getClassNotes(classId, user.id);
+        return this.evaluatorService.getClassNotes(classId, user.id, user.roles);
     }
 
     @Post('classes/:classId/notes')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     async saveClassNotes(
         @Param('classId', ParseIntPipe) classId: number,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: { id: number; roles: string[] },
         @Body('note') note: string,
     ) {
-        return this.evaluatorService.saveClassNotes(classId, user.id, note);
+        return this.evaluatorService.saveClassNotes(classId, user.id, user.roles, note);
     }
 
     @Get('classes')
@@ -89,8 +89,8 @@ export class EvaluatorController {
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     async getClassStudents(
         @Param('classId', ParseIntPipe) classId: number,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: { id: number; roles: string[] },
     ) {
-        return this.evaluatorService.getClassStudents(classId, user.id);
+        return this.evaluatorService.getClassStudents(classId, user.id, user.roles);
     }
 }

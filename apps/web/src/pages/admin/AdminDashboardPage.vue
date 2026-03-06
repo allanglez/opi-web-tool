@@ -90,6 +90,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
+import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -99,7 +100,6 @@ import LoadingState from '../../components/ui/LoadingState.vue';
 import ErrorState from '../../components/ui/ErrorState.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 
-const API_BASE = '/api/v1';
 const authStore = useAuthStore();
 
 const currentUser = computed(() => authStore.user ? {
@@ -143,28 +143,11 @@ const stats = ref<DashboardStats>({
   recentActivity: [],
 });
 
-async function getAuthHeaders() {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = await authStore.getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  if (authStore.user?.id) {
-    headers['X-Mock-User-Id'] = String(authStore.user.id);
-  }
-  return headers;
-}
-
 async function fetchDashboard() {
   isLoading.value = true;
   error.value = null;
   try {
-    const response = await fetch(`${API_BASE}/admin/dashboard/stats`, {
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
-    if (!response.ok) throw new Error('Failed to load dashboard data');
-    stats.value = await response.json();
+    stats.value = await api.get<DashboardStats>('/admin/dashboard/stats');
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error';
   } finally {

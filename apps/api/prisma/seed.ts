@@ -4,15 +4,18 @@ import { PrismaMssql } from '@prisma/adapter-mssql';
 
 config();
 
+const dbPort = parseInt(process.env.DB_PORT || '1433', 10);
+const includeDevTestUsers = process.env.SEED_INCLUDE_TEST_USERS === 'true';
+
 const adapter = new PrismaMssql({
-  server: 'localhost',
-  port: 1433,
-  database: 'opi',
-  user: 'sa',
-  password: 'OpiDev2026!',
+  server: process.env.DB_HOST || 'localhost',
+  port: dbPort,
+  database: process.env.DB_NAME || 'opi',
+  user: process.env.DB_USER || 'sa',
+  password: process.env.DB_PASSWORD || '',
   options: {
-    encrypt: false,
-    trustServerCertificate: true,
+    encrypt: process.env.DB_ENCRYPT === 'true',
+    trustServerCertificate: process.env.DB_TRUST_CERT !== 'false',
   },
 });
 const prisma = new PrismaClient({ adapter });
@@ -286,65 +289,68 @@ async function main() {
   }
   console.log(`✅ Synced assessment criteria (created: ${criteriaCreated}, updated: ${criteriaUpdated})`);
 
-  // Create test users for development
-  const adminRole = await prisma.role.findUnique({ where: { name: 'ADMIN' } });
-  const coordinatorRole = await prisma.role.findUnique({ where: { name: 'COORDINATOR' } });
-  const evaluatorRole = await prisma.role.findUnique({ where: { name: 'EVALUATOR' } });
+  if (includeDevTestUsers) {
+    const adminRole = await prisma.role.findUnique({ where: { name: 'ADMIN' } });
+    const coordinatorRole = await prisma.role.findUnique({ where: { name: 'COORDINATOR' } });
+    const evaluatorRole = await prisma.role.findUnique({ where: { name: 'EVALUATOR' } });
 
-  const testUsers = [
-    {
-      externalAuthId: 'auth0|test-admin',
-      email: 'admin@test.com',
-      firstName: 'Admin',
-      lastName: 'User',
-      roleId: adminRole!.id,
-    },
-    {
-      externalAuthId: 'auth0|test-coordinator',
-      email: 'coordinator@test.com',
-      firstName: 'Coordinator',
-      lastName: 'User',
-      roleId: coordinatorRole!.id,
-    },
-    {
-      externalAuthId: 'auth0|test-evaluator',
-      email: 'evaluator@test.com',
-      firstName: 'Evaluator',
-      lastName: 'User',
-      roleId: evaluatorRole!.id,
-    },
-  ];
-
-  let usersCreated = 0;
-  for (const userData of testUsers) {
-    const user = await prisma.user.upsert({
-      where: { externalAuthId: userData.externalAuthId },
-      update: {},
-      create: {
-        externalAuthId: userData.externalAuthId,
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        isActive: true,
+    const testUsers = [
+      {
+        externalAuthId: 'auth0|test-admin',
+        email: 'admin@test.com',
+        firstName: 'Admin',
+        lastName: 'User',
+        roleId: adminRole!.id,
       },
-    });
+      {
+        externalAuthId: 'auth0|test-coordinator',
+        email: 'coordinator@test.com',
+        firstName: 'Coordinator',
+        lastName: 'User',
+        roleId: coordinatorRole!.id,
+      },
+      {
+        externalAuthId: 'auth0|test-evaluator',
+        email: 'evaluator@test.com',
+        firstName: 'Evaluator',
+        lastName: 'User',
+        roleId: evaluatorRole!.id,
+      },
+    ];
 
-    await prisma.userRole.upsert({
-      where: {
-        userId_roleId: {
+    let usersCreated = 0;
+    for (const userData of testUsers) {
+      const user = await prisma.user.upsert({
+        where: { externalAuthId: userData.externalAuthId },
+        update: {},
+        create: {
+          externalAuthId: userData.externalAuthId,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          isActive: true,
+        },
+      });
+
+      await prisma.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: user.id,
+            roleId: userData.roleId,
+          },
+        },
+        update: {},
+        create: {
           userId: user.id,
           roleId: userData.roleId,
         },
-      },
-      update: {},
-      create: {
-        userId: user.id,
-        roleId: userData.roleId,
-      },
-    });
-    usersCreated++;
+      });
+      usersCreated++;
+    }
+    console.log(`✅ Upserted ${usersCreated} test users with roles`);
+  } else {
+    console.log('ℹ️ Skipping test user seed');
   }
-  console.log(`✅ Upserted ${usersCreated} test users with roles`);
 
   console.log('✅ Database seeded successfully');
 }

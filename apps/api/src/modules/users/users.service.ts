@@ -101,13 +101,11 @@ export class UsersService {
     }
 
     // If no user exists, create a new one with PENDING role
-    const pendingRole = await this.prisma.role.findUnique({
+    const pendingRole = await this.prisma.role.upsert({
       where: { name: 'PENDING' },
+      update: {},
+      create: { name: 'PENDING' },
     });
-
-    if (!pendingRole) {
-      throw new Error('PENDING role not found in database');
-    }
 
     user = await this.prisma.user.create({
       data: {

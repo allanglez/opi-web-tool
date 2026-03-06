@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -33,6 +33,8 @@ export class UsersService {
   }
 
   async upsertFromAuth0(externalAuthId: string, email: string, firstName?: string, lastName?: string) {
+    const normalizedEmail = email?.trim().toLowerCase();
+
     // First, try to find user by externalAuthId
     let user = await this.prisma.user.findUnique({
       where: { externalAuthId },
@@ -46,9 +48,9 @@ export class UsersService {
     });
 
     // If not found by externalAuthId, check if a pre-created user exists with this email
-    if (!user && email) {
+    if (!user && normalizedEmail) {
       const existingUserByEmail = await this.prisma.user.findUnique({
-        where: { email },
+        where: { email: normalizedEmail },
         include: {
           userRoles: {
             include: {
@@ -86,7 +88,7 @@ export class UsersService {
         where: { externalAuthId },
         data: {
           lastLoginAt: new Date(),
-          ...(email && { email }),
+          ...(normalizedEmail && { email: normalizedEmail }),
           ...(firstName && { firstName }),
           ...(lastName && { lastName }),
         },
@@ -101,6 +103,10 @@ export class UsersService {
       return user;
     }
 
+    if (!normalizedEmail) {
+      throw new UnauthorizedException('Authenticated user email is missing from token');
+    }
+
     // If no user exists, create a new one with PENDING role
     const pendingRole = await this.prisma.role.upsert({
       where: { name: 'PENDING' },
@@ -112,7 +118,7 @@ export class UsersService {
       user = await this.prisma.user.create({
         data: {
           externalAuthId,
-          email: email || '', // Fallback to empty string if email is undefined to satisfy Prisma schema
+          email: normalizedEmail,
           firstName: firstName || '',
           lastName: lastName || '',
           isActive: true,
@@ -140,7 +146,7 @@ export class UsersService {
         where: {
           OR: [
             { externalAuthId },
-            ...(email ? [{ email }] : []),
+            { email: normalizedEmail },
           ],
         },
         include: {
@@ -160,7 +166,7 @@ export class UsersService {
         where: { id: conflictingUser.id },
         data: {
           externalAuthId,
-          ...(email && { email }),
+          email: normalizedEmail,
           ...(firstName && { firstName }),
           ...(lastName && { lastName }),
           lastLoginAt: new Date(),

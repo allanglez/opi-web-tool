@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -107,28 +108,72 @@ export class UsersService {
       create: { name: 'PENDING' },
     });
 
-    user = await this.prisma.user.create({
-      data: {
-        externalAuthId,
-        email: email || '', // Fallback to empty string if email is undefined to satisfy Prisma schema
-        firstName: firstName || '',
-        lastName: lastName || '',
-        isActive: true,
-        lastLoginAt: new Date(),
-        userRoles: {
-          create: {
-            roleId: pendingRole.id,
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          externalAuthId,
+          email: email || '', // Fallback to empty string if email is undefined to satisfy Prisma schema
+          firstName: firstName || '',
+          lastName: lastName || '',
+          isActive: true,
+          lastLoginAt: new Date(),
+          userRoles: {
+            create: {
+              roleId: pendingRole.id,
+            },
           },
         },
-      },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
+        include: {
+          userRoles: {
+            include: {
+              role: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+
+      const conflictingUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { externalAuthId },
+            ...(email ? [{ email }] : []),
+          ],
+        },
+        include: {
+          userRoles: {
+            include: {
+              role: true,
+            },
+          },
+        },
+      });
+
+      if (!conflictingUser) {
+        throw error;
+      }
+
+      user = await this.prisma.user.update({
+        where: { id: conflictingUser.id },
+        data: {
+          externalAuthId,
+          ...(email && { email }),
+          ...(firstName && { firstName }),
+          ...(lastName && { lastName }),
+          lastLoginAt: new Date(),
+        },
+        include: {
+          userRoles: {
+            include: {
+              role: true,
+            },
+          },
+        },
+      });
+    }
 
     return user;
   }

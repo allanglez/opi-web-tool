@@ -126,6 +126,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../../stores/auth';
 import AppShell from '../../../components/layout/AppShell.vue';
 import BaseCard from '../../../components/ui/BaseCard.vue';
+import { api } from '../../../utils/api';
 
 const authStore = useAuthStore();
 
@@ -173,32 +174,22 @@ const formatDate = (dateString: string) => {
 
 const fetchActiveCycle = async () => {
   try {
-    const response = await fetch('/api/v1/cycles/active', {
-      credentials: 'include',
-    });
-
-    if (response.ok) {
-      activeCycle.value = await response.json();
-    } else if (response.status === 404) {
-      activeCycle.value = null;
-    } else {
-      throw new Error('Failed to fetch active cycle');
-    }
+    activeCycle.value = await api.get<Cycle>('/cycles/active');
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error';
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    if (message.includes('404')) {
+      activeCycle.value = null;
+      return;
+    }
+
+    error.value = message;
   }
 };
 
 const checkIngestionData = async () => {
   try {
-    const response = await fetch('/api/v1/ingest/logs', {
-      credentials: 'include',
-    });
-
-    if (response.ok) {
-      const logs = await response.json();
-      hasIngestionData.value = logs.length > 0;
-    }
+    const logs = await api.get<unknown[]>('/ingest/logs');
+    hasIngestionData.value = logs.length > 0;
   } catch (err) {
     console.error('Failed to check ingestion data:', err);
   }
@@ -209,19 +200,7 @@ const handleCreateCycle = async () => {
   error.value = null;
 
   try {
-    const response = await fetch('/api/v1/admin/cycles', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(newCycle.value),
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || 'Failed to create cycle');
-    }
+    await api.post('/admin/cycles', newCycle.value);
 
     newCycle.value = { name: '', startsOn: '', endsOn: '' };
     await fetchActiveCycle();
@@ -239,15 +218,7 @@ const handleApproveCycle = async () => {
   error.value = null;
 
   try {
-    const response = await fetch(`/api/v1/admin/cycles/${activeCycle.value.id}/approve`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || 'Failed to approve cycle');
-    }
+    await api.post(`/admin/cycles/${activeCycle.value.id}/approve`);
 
     await fetchActiveCycle();
   } catch (err) {

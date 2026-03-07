@@ -9,6 +9,24 @@ export class EvaluatorService {
         private cyclesService: CyclesService,
     ) { }
 
+    private async getClassViewCycle(hasFullAccess: boolean) {
+        if (!hasFullAccess) {
+            return this.cyclesService.checkCycleApproval();
+        }
+
+        const cycle = await this.cyclesService.getActiveCycle();
+
+        if (!cycle) {
+            throw new ForbiddenException({
+                statusCode: 403,
+                message: 'No active cycle exists',
+                error: 'CYCLE_NOT_APPROVED',
+            });
+        }
+
+        return cycle;
+    }
+
     /**
      * Get enriched dashboard data: stats, schools, next students, recent assessments.
      */
@@ -382,7 +400,7 @@ export class EvaluatorService {
         page: number = 1,
         pageSize: number = 25,
     ) {
-        const cycle = await this.cyclesService.checkCycleApproval();
+        const cycle = await this.getClassViewCycle(true);
 
         const whereClause: any = {
             cycleId: cycle.id,
@@ -722,8 +740,8 @@ export class EvaluatorService {
      * Get all class notes for a class.
      */
     async getClassNotes(classId: number, evaluatorId: number, roles: string[] = []) {
-        const cycle = await this.cyclesService.checkCycleApproval();
         const hasFullAccess = roles.includes('COORDINATOR') || roles.includes('ADMIN');
+        const cycle = await this.getClassViewCycle(hasFullAccess);
 
         // Verify user has access to this class (evaluator, coordinator, or admin)
         if (!hasFullAccess) {
@@ -779,8 +797,8 @@ export class EvaluatorService {
      * Create a new class note.
      */
     async saveClassNotes(classId: number, userId: number, roles: string[] = [], noteText: string) {
-        const cycle = await this.cyclesService.checkCycleApproval();
         const hasFullAccess = roles.includes('COORDINATOR') || roles.includes('ADMIN');
+        const cycle = await this.getClassViewCycle(hasFullAccess);
 
         // Verify user has access to this class
         if (!hasFullAccess) {
@@ -953,8 +971,8 @@ export class EvaluatorService {
      */
     async getClassStudents(classId: number, evaluatorId: number, roles: string[] = []) {
         // Check cycle is approved
-        const cycle = await this.cyclesService.checkCycleApproval();
         const hasFullAccess = roles.includes('COORDINATOR') || roles.includes('ADMIN');
+        const cycle = await this.getClassViewCycle(hasFullAccess);
 
         // Check evaluator is assigned to this class
         if (!hasFullAccess) {

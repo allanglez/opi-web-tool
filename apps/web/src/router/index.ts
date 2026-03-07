@@ -46,7 +46,7 @@ const router = createRouter({
       path: '/cycle-not-approved',
       name: 'cycle-not-approved',
       component: () => import('../pages/CycleNotApprovedPage.vue'),
-      meta: { roles: ['COORDINATOR', 'EVALUATOR'] },
+      meta: { roles: ['ADMIN', 'COORDINATOR', 'EVALUATOR'] },
     },
     {
       path: '/admin/dashboard',

@@ -172,6 +172,11 @@ const formatDate = (dateString: string) => {
   });
 };
 
+const getCycleYear = (startsOn: string) => {
+  const parsedYear = Number.parseInt(startsOn.split('-')[0] || '', 10);
+  return Number.isNaN(parsedYear) ? null : parsedYear;
+};
+
 const fetchActiveCycle = async () => {
   try {
     activeCycle.value = await api.get<Cycle>('/cycles/active');
@@ -200,7 +205,16 @@ const handleCreateCycle = async () => {
   error.value = null;
 
   try {
-    await api.post('/admin/cycles', newCycle.value);
+    const year = getCycleYear(newCycle.value.startsOn);
+
+    if (!year) {
+      throw new Error('Start date is required to determine the cycle year');
+    }
+
+    await api.post('/admin/cycles', {
+      ...newCycle.value,
+      year,
+    });
 
     newCycle.value = { name: '', startsOn: '', endsOn: '' };
     await fetchActiveCycle();

@@ -95,6 +95,7 @@ import AppShell from '../../../components/layout/AppShell.vue';
 import BaseCard from '../../../components/ui/BaseCard.vue';
 import AppDataTable from '../../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../../components/ui/data-table/types';
+import { api } from '../../../utils/api';
 
 const authStore = useAuthStore();
 
@@ -194,15 +195,7 @@ const fetchLogs = async () => {
   error.value = null;
 
   try {
-    const response = await fetch('/api/v1/ingest/logs', {
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch ingestion logs');
-    }
-
-    logs.value = await response.json();
+    logs.value = await api.get<IngestionLog[]>('/ingest/logs');
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error';
   } finally {

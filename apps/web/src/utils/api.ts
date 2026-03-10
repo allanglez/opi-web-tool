@@ -23,9 +23,7 @@ export interface PaginatedResponse<T> {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const headers: Record<string, string> = {};
 
   const authStore = useAuthStore();
 
@@ -113,6 +111,7 @@ export class ApiClient {
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
+      headers: data ? { 'Content-Type': 'application/json' } : undefined,
       body: data ? JSON.stringify(data) : undefined,
     });
   }
@@ -120,6 +119,7 @@ export class ApiClient {
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      headers: data ? { 'Content-Type': 'application/json' } : undefined,
       body: data ? JSON.stringify(data) : undefined,
     });
   }
@@ -127,6 +127,7 @@ export class ApiClient {
   async patch<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
+      headers: data ? { 'Content-Type': 'application/json' } : undefined,
       body: data ? JSON.stringify(data) : undefined,
     });
   }

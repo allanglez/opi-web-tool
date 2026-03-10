@@ -152,11 +152,13 @@
 
         <template #cell-actions="{ row }">
           <button
+            v-if="asRow(row).id"
             class="px-3 py-1 text-xs font-semibold text-white bg-neutral-900 border border-neutral-900 rounded hover:bg-neutral-800 transition-colors"
-            @click="viewAssessment(asRow(row).id)"
+            @click="viewAssessment(asRow(row).id!)"
           >
             View
           </button>
+          <span v-else class="text-xs text-neutral-400">Not started</span>
         </template>
       </AppDataTable>
     </BaseCard>
@@ -188,7 +190,8 @@ const currentUser = computed(() => authStore.user ? {
 } : null);
 
 interface AssessmentRow {
-  id: number;
+  id: number | null;
+  studentId?: number;
   studentName: string;
   school: string | null;
   classCode: string | null;

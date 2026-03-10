@@ -205,100 +205,89 @@ export class DashboardService {
 
     const cycleId = activeCycle.id;
 
-    const whereClause: Record<string, unknown> = { cycleId };
-
-    if (filters?.status && filters.status !== 'ALL') {
-      whereClause['status'] = filters.status;
-    }
-
-    if (filters?.evaluatorId) {
-      whereClause['evaluatorId'] = filters.evaluatorId;
-    }
-
-    const assessments = await this.prisma.assessment.findMany({
-      where: whereClause,
+    const students = await this.prisma.student.findMany({
+      where: {
+        cycleId,
+        isActive: true,
+      },
       include: {
-        student: {
+        school: { select: { id: true, name: true } },
+        classStudents: {
           include: {
-            school: { select: { id: true, name: true } },
-            classStudents: {
+            class: {
               include: {
-                class: {
+                program: { select: { id: true, name: true } },
+                teacher: { select: { id: true, name: true } },
+                evaluatorAssignments: {
+                  where: { cycleId },
                   include: {
-                    program: { select: { id: true, name: true } },
-                    teacher: { select: { id: true, name: true } },
+                    evaluator: { select: { id: true, firstName: true, lastName: true } },
                   },
                 },
               },
             },
           },
         },
-        evaluator: { select: { id: true, firstName: true, lastName: true } },
-        score: { include: { opiLevel: { select: { id: true, description: true } } } },
-        auditLogs: {
-          where: { action: 'ASSESSMENT_RE_EVALUATE' },
-          orderBy: { changedAt: 'desc' },
-          take: 1,
+        assessments: {
+          where: { cycleId },
           include: {
-            changer: { select: { id: true, firstName: true, lastName: true } },
-          },
-        },
-        reviewFlags: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          include: {
-            flagger: { select: { id: true, firstName: true, lastName: true } },
-            resolver: { select: { id: true, firstName: true, lastName: true } },
+            evaluator: { select: { id: true, firstName: true, lastName: true } },
+            score: { include: { opiLevel: { select: { id: true, description: true } } } },
+            auditLogs: {
+              where: { action: 'ASSESSMENT_RE_EVALUATE' },
+              orderBy: { changedAt: 'desc' },
+              take: 1,
+              include: {
+                changer: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
+            reviewFlags: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              include: {
+                flagger: { select: { id: true, firstName: true, lastName: true } },
+                resolver: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
           },
         },
       },
       orderBy: [
-        { student: { school: { name: 'asc' } } },
-        { student: { lastName: 'asc' } },
-        { student: { firstName: 'asc' } },
+        { school: { name: 'asc' } },
+        { lastName: 'asc' },
+        { firstName: 'asc' },
       ],
     });
 
-    // Apply class/school/program filters post-query (via classStudents join)
-    const filtered = assessments.filter((a) => {
-      const classStudent = a.student.classStudents[0];
-      const latestReEvalLog = a.auditLogs[0] ?? null;
-      if (!classStudent) return true;
-      if (filters?.schoolId && a.student.schoolId !== filters.schoolId) return false;
-      if (filters?.classId && classStudent.classId !== filters.classId) return false;
-      if (filters?.programId && classStudent.class.programId !== filters.programId) return false;
-      if (filters?.reEval === 'YES' && !latestReEvalLog) return false;
-      if (filters?.reEval === 'NO' && latestReEvalLog) return false;
-      return true;
-    });
-
-    const stats = {
-      total: filtered.length,
-      completed: filtered.filter((a) => a.status === 'COMPLETED').length,
-      inProgress: filtered.filter((a) => a.status === 'IN_PROGRESS').length,
-      notStarted: filtered.filter((a) => a.status === 'NOT_STARTED').length,
-    };
-
-    const rows = filtered.map((a) => {
-      const classStudent = a.student.classStudents[0];
+    const rows = students.map((student) => {
+      const classStudent = student.classStudents[0];
       const cls = classStudent?.class;
-      const latestReEvalLog = a.auditLogs[0] ?? null;
+      const assessment = student.assessments[0] ?? null;
+      const latestReEvalLog = assessment?.auditLogs[0] ?? null;
+      const assignedEvaluator = cls?.evaluatorAssignments[0]?.evaluator ?? null;
+      const resolvedStatus = assessment?.status ?? 'NOT_STARTED';
+      const resolvedEvaluator = assessment?.evaluator ?? assignedEvaluator;
 
       return {
-        id: a.id,
-        studentName: `${a.student.firstName} ${a.student.lastName}`.trim(),
-        school: a.student.school?.name ?? null,
+        id: assessment?.id ?? null,
+        studentId: student.id,
+        schoolId: student.schoolId,
+        classId: classStudent?.classId ?? null,
+        evaluatorId: resolvedEvaluator?.id ?? null,
+        programId: cls?.program?.id ?? null,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        school: student.school?.name ?? null,
         classCode: cls?.classCode ?? null,
         teacher: cls?.teacher?.name ?? null,
         program: cls?.program?.name ?? null,
-        status: a.status,
-        score: a.score?.opiLevel?.id ?? null,
+        status: resolvedStatus,
+        score: assessment?.score?.opiLevel?.id ?? null,
         reEval: latestReEvalLog !== null,
-        evaluator: a.evaluator
-          ? `${a.evaluator.firstName} ${a.evaluator.lastName}`.trim()
+        evaluator: resolvedEvaluator
+          ? `${resolvedEvaluator.firstName} ${resolvedEvaluator.lastName}`.trim()
           : null,
-        completedDate: a.completedAt ? a.completedAt.toISOString() : null,
-        startDate: a.startedAt ? a.startedAt.toISOString() : null,
+        completedDate: assessment?.completedAt ? assessment.completedAt.toISOString() : null,
+        startDate: assessment?.startedAt ? assessment.startedAt.toISOString() : null,
         lastReEvalDate: latestReEvalLog?.changedAt ? latestReEvalLog.changedAt.toISOString() : null,
         lastReEvalBy: latestReEvalLog?.changer
           ? `${latestReEvalLog.changer.firstName} ${latestReEvalLog.changer.lastName}`.trim()
@@ -306,34 +295,51 @@ export class DashboardService {
       };
     });
 
+    const filtered = rows.filter((row) => {
+      if (filters?.status && filters.status !== 'ALL' && row.status !== filters.status) return false;
+      if (filters?.evaluatorId && row.evaluatorId !== filters.evaluatorId) return false;
+      if (filters?.schoolId && row.schoolId !== filters.schoolId) return false;
+      if (filters?.classId && row.classId !== filters.classId) return false;
+      if (filters?.programId && row.programId !== filters.programId) return false;
+      if (filters?.reEval === 'YES' && !row.reEval) return false;
+      if (filters?.reEval === 'NO' && row.reEval) return false;
+      return true;
+    });
+
+    const stats = {
+      total: filtered.length,
+      completed: filtered.filter((row) => row.status === 'COMPLETED').length,
+      inProgress: filtered.filter((row) => row.status === 'IN_PROGRESS').length,
+      notStarted: filtered.filter((row) => row.status === 'NOT_STARTED').length,
+    };
+
     // Build filter options
     const schoolMap = new Map<number, string>();
     const classMap = new Map<number, string>();
     const evaluatorMap = new Map<number, string>();
     const programMap = new Map<number, string>();
 
-    for (const a of assessments) {
-      if (a.student.school) {
-        schoolMap.set(a.student.school.id, a.student.school.name);
+    for (const row of rows) {
+      if (row.schoolId && row.school) {
+        schoolMap.set(row.schoolId, row.school);
       }
-      if (a.evaluator) {
+      if (row.evaluatorId && row.evaluator) {
         evaluatorMap.set(
-          a.evaluator.id,
-          `${a.evaluator.firstName} ${a.evaluator.lastName}`.trim(),
+          row.evaluatorId,
+          row.evaluator,
         );
       }
-      const cs = a.student.classStudents[0];
-      if (cs) {
-        classMap.set(cs.classId, cs.class.classCode);
-        if (cs.class.program) {
-          programMap.set(cs.class.program.id, cs.class.program.name);
-        }
+      if (row.classId && row.classCode) {
+        classMap.set(row.classId, row.classCode);
+      }
+      if (row.programId && row.program) {
+        programMap.set(row.programId, row.program);
       }
     }
 
     return {
       stats,
-      assessments: rows,
+      assessments: filtered,
       filterOptions: {
         schools: [...schoolMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
         classes: [...classMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),

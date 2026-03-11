@@ -137,10 +137,12 @@ import { useAudioRecorder } from '../../composables/useAudioRecorder';
 
 interface Props {
   isLoading?: boolean;
+  disabled?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
+  disabled: false,
 });
 
 const emit = defineEmits<{

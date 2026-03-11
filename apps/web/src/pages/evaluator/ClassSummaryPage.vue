@@ -383,7 +383,10 @@ const getColorForLevel = (level: string): string => {
 };
 
 const viewAssessment = (assessmentId: number) => {
-  router.push(`/evaluator/assessments/${assessmentId}`);
+  router.push({
+    path: `/evaluator/assessments/${assessmentId}`,
+    query: { from: 'evaluator-class-summary', returnTo: route.fullPath },
+  });
 };
 
 const exportToCSV = async () => {

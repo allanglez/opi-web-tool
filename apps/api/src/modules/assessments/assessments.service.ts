@@ -32,6 +32,19 @@ export class AssessmentsService {
         private auditService: AuditService,
     ) { }
 
+    private formatCriteriaDescriptions(
+        criteria: Array<{ description: string }>,
+    ): string {
+        if (criteria.length === 0) {
+            return 'none';
+        }
+
+        return criteria
+            .map((item) => item.description.trim())
+            .filter((description) => description.length > 0)
+            .join(', ');
+    }
+
     private normalizeCriteriaIds(criteriaIds?: number[]): number[] {
         if (!criteriaIds || criteriaIds.length === 0) {
             return [];
@@ -340,6 +353,11 @@ export class AssessmentsService {
             where: { id },
             include: {
                 score: true,
+                criteriaResults: {
+                    include: {
+                        criteria: true,
+                    },
+                },
             },
         });
 
@@ -462,13 +480,24 @@ export class AssessmentsService {
         }
 
         if (dto.criteriaIds !== undefined) {
+            const previousCriteriaDescriptions = this.formatCriteriaDescriptions(
+                assessment.criteriaResults
+                    .filter((result) => result.met)
+                    .map((result) => ({ description: result.criteria.description })),
+            );
+            const nextCriteriaDescriptions = this.formatCriteriaDescriptions(
+                updated.criteriaResults
+                    .filter((result) => result.met)
+                    .map((result) => ({ description: result.criteria.description })),
+            );
+
             await this.auditService.logAssessmentAction(
                 id,
                 'ASSESSMENT_UPDATE',
                 userId,
-                'criteria_count',
-                undefined,
-                this.normalizeCriteriaIds(dto.criteriaIds).length.toString(),
+                'criteria_ids',
+                previousCriteriaDescriptions,
+                nextCriteriaDescriptions,
             );
         }
 
@@ -610,13 +639,18 @@ export class AssessmentsService {
         );
 
         if (dto.criteriaIds !== undefined) {
+            const selectedCriteriaDescriptions = this.formatCriteriaDescriptions(
+                completed.criteriaResults
+                    .filter((result) => result.met)
+                    .map((result) => ({ description: result.criteria.description })),
+            );
             await this.auditService.logAssessmentAction(
                 id,
                 'ASSESSMENT_COMPLETE',
                 userId,
-                'criteria_count',
-                undefined,
-                this.normalizeCriteriaIds(dto.criteriaIds).length.toString(),
+                'criteria_ids',
+                'none',
+                selectedCriteriaDescriptions,
             );
         }
 
@@ -1110,13 +1144,20 @@ export class AssessmentsService {
                 .sort((a, b) => a - b);
 
             if (oldCriteriaIds.join(',') !== newCriteriaIds.join(',')) {
+                const oldCriteriaDescriptions = this.formatCriteriaDescriptions(
+                    assessment.criteriaResults
+                        .filter((result) => result.met)
+                        .map((result) => ({ description: result.criteria.description })),
+                );
+                const newCriteriaDescriptions = this.formatCriteriaDescriptions(selectedCriteria);
+
                 auditEntries.push({
                     assessmentId: id,
                     action: 'ASSESSMENT_RE_EVALUATE',
                     userId,
                     fieldName: 'criteria_ids',
-                    oldValue: oldCriteriaIds.length > 0 ? oldCriteriaIds.join(',') : 'none',
-                    newValue: newCriteriaIds.length > 0 ? newCriteriaIds.join(',') : 'none',
+                    oldValue: oldCriteriaDescriptions,
+                    newValue: newCriteriaDescriptions,
                 });
             }
         }

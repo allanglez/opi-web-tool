@@ -195,7 +195,7 @@
                 </button>
                 <router-link
                   v-else-if="asClassStudent(row).assessmentId"
-                  :to="`/evaluator/assessments/${asClassStudent(row).assessmentId}`"
+                  :to="{ path: `/evaluator/assessments/${asClassStudent(row).assessmentId}`, query: { from: 'evaluator-class-view', returnTo: route.fullPath } }"
                   class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-3 py-1 hover:bg-neutral-50"
                 >
                   View
@@ -208,7 +208,7 @@
     </template>
 
     <!-- Pagination -->
-    <section v-if="isCoordinatorOrAdmin && totalPages > 1" class="mb-6">
+    <section v-if="isCoordinatorOrAdmin && totalPages > 1" class="sticky bottom-0 z-10 pb-6">
       <BaseCard>
         <div class="flex items-center justify-between">
           <div class="text-sm text-neutral-600">
@@ -470,7 +470,10 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 async function handleStudentAction(student: ClassStudent, _cls: ClassDetail) {
   if (student.assessmentId) {
-    router.push(`/evaluator/assessments/${student.assessmentId}`);
+    router.push({
+      path: `/evaluator/assessments/${student.assessmentId}`,
+      query: { from: 'evaluator-class-view', returnTo: route.fullPath },
+    });
     return;
   }
   if (!cycleId.value) return;
@@ -490,7 +493,10 @@ async function handleStudentAction(student: ClassStudent, _cls: ClassDetail) {
     }
 
     const assessment = await res.json();
-    router.push(`/evaluator/assessments/${assessment.id}`);
+    router.push({
+      path: `/evaluator/assessments/${assessment.id}`,
+      query: { from: 'evaluator-class-view', returnTo: route.fullPath },
+    });
   } catch (e) {
     alert(e instanceof Error ? e.message : 'Failed to start assessment');
   }

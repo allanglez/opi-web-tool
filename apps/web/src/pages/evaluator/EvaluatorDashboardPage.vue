@@ -164,13 +164,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ChevronRight } from 'lucide-vue-next';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -241,7 +242,10 @@ function formatDate(dateStr: string | null): string {
 
 async function handleStudentAction(student: DashboardData['nextStudents'][0]) {
   if (student.assessmentId) {
-    router.push(`/evaluator/assessments/${student.assessmentId}`);
+    router.push({
+      path: `/evaluator/assessments/${student.assessmentId}`,
+      query: { from: 'evaluator-dashboard', returnTo: route.fullPath },
+    });
     return;
   }
 
@@ -264,7 +268,10 @@ async function handleStudentAction(student: DashboardData['nextStudents'][0]) {
     }
 
     const assessment = await res.json();
-    router.push(`/evaluator/assessments/${assessment.id}`);
+    router.push({
+      path: `/evaluator/assessments/${assessment.id}`,
+      query: { from: 'evaluator-dashboard', returnTo: route.fullPath },
+    });
   } catch (e) {
     alert(e instanceof Error ? e.message : 'Failed to start assessment');
   }

@@ -85,6 +85,7 @@ import { useAuthStore } from '../../stores/auth';
 
 const props = defineProps<{
   assessmentId: number;
+  refreshKey?: number;
 }>();
 
 const authStore = useAuthStore();
@@ -218,6 +219,22 @@ watch(isExpanded, (val) => {
 });
 
 // Re-fetch when assessment changes
+watch(
+  () => props.refreshKey,
+  () => {
+    if (!props.assessmentId) {
+      return;
+    }
+
+    if (!isExpanded.value) {
+      entries.value = [];
+      return;
+    }
+
+    fetchTimeline();
+  },
+);
+
 watch(
   () => props.assessmentId,
   (assessmentId) => {

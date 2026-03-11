@@ -130,7 +130,7 @@
                 </button>
                 <router-link
                   v-else-if="asStudentRow(row).assessmentId"
-                  :to="`/evaluator/assessments/${asStudentRow(row).assessmentId}`"
+                  :to="{ path: `/evaluator/assessments/${asStudentRow(row).assessmentId}`, query: { from: 'evaluator-assignments', returnTo: route.fullPath } }"
                   class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-3 py-1 hover:bg-neutral-50"
                 >
                   View
@@ -301,7 +301,10 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 async function handleAction(student: StudentRow) {
   if (student.assessmentId) {
-    router.push(`/evaluator/assessments/${student.assessmentId}`);
+    router.push({
+      path: `/evaluator/assessments/${student.assessmentId}`,
+      query: { from: 'evaluator-assignments', returnTo: route.fullPath },
+    });
     return;
   }
   if (!cycleId.value) return;
@@ -321,7 +324,10 @@ async function handleAction(student: StudentRow) {
     }
 
     const assessment = await res.json();
-    router.push(`/evaluator/assessments/${assessment.id}`);
+    router.push({
+      path: `/evaluator/assessments/${assessment.id}`,
+      query: { from: 'evaluator-assignments', returnTo: route.fullPath },
+    });
   } catch (e) {
     alert(e instanceof Error ? e.message : 'Failed to start assessment');
   }

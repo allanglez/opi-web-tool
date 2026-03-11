@@ -21,12 +21,13 @@
         This assessment is currently being worked on by
         <strong>{{ assessment.evaluator?.firstName }} {{ assessment.evaluator?.lastName }}</strong>.
       </p>
-      <router-link
-        :to="backUrl"
+      <button
+        type="button"
         class="mt-4 inline-block px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+        @click="navigateBack"
       >
         Go Back
-      </router-link>
+      </button>
     </div>
 
     <template v-else-if="assessment">
@@ -54,13 +55,14 @@
 
       <!-- TOP BACK LINK -->
       <div class="mt-4 mb-2">
-        <router-link
-          :to="backUrl"
+        <button
+          type="button"
           class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-800 transition-colors"
+          @click="navigateBack"
         >
           <ArrowLeft class="w-3.5 h-3.5" />
           {{ backLabel }}
-        </router-link>
+        </button>
       </div>
 
       <!-- STUDENT CONTEXT HEADER -->
@@ -113,7 +115,7 @@
               v-for="level in opiLevels"
               :key="level.id"
               type="button"
-              :disabled="!isAdminView && assessment.status === 'COMPLETED'"
+              :disabled="isFormReadOnly"
               class="px-4 py-3 text-sm font-medium rounded-lg border-2 transition-colors text-center"
               :class="activeOpiLevelId === level.id
                 ? 'border-[#0f3f52] bg-[#0f3f52] text-white font-bold'
@@ -147,7 +149,7 @@
                   type="checkbox"
                   class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
                   :checked="activeCriteriaIds.includes(criteria.id)"
-                  :disabled="!isAdminView && assessment.status === 'COMPLETED'"
+                  :disabled="isFormReadOnly"
                   @change="toggleActiveCriteria(criteria.id)"
                 />
                 <span>{{ criteria.description }}</span>
@@ -173,6 +175,7 @@
               <p class="text-xs text-neutral-500 mb-4">Click the record button to begin the OPI assessment recording</p>
               <AudioRecorder
                 :is-loading="isSaving"
+                :disabled="isFormReadOnly"
                 @audio-recorded="handleAudioRecorded"
               />
             </div>
@@ -193,6 +196,7 @@
                   type="file"
                   accept="audio/mpeg,.mp3"
                   class="hidden"
+                  :disabled="isFormReadOnly"
                   @change="handleFileUpload"
                 />
               </label>
@@ -256,7 +260,7 @@
           <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wider mb-4">Additional Notes</h2>
           <textarea
             v-model="activeNotes"
-            :disabled="!isAdminView && assessment.status === 'COMPLETED'"
+            :disabled="isFormReadOnly"
             rows="5"
             class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 disabled:bg-neutral-50 resize-y"
             placeholder="Enter any additional observations, comments, or notes about the student's performance..."
@@ -319,13 +323,14 @@
             <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex-1">
               <p class="text-green-800 text-sm">Assessment completed on {{ formatDate(assessment.completedAt) }}</p>
             </div>
-            <router-link
-              :to="backUrl"
+            <button
+              type="button"
               class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50 whitespace-nowrap"
+              @click="navigateBack"
             >
               <ArrowLeft class="w-3.5 h-3.5" />
               {{ backLabel }}
-            </router-link>
+            </button>
           </div>
         </BaseCard>
       </div>
@@ -402,25 +407,26 @@
 
       <!-- Assessment History Timeline -->
       <BaseCard class="mb-6">
-        <AssessmentHistoryTimeline :assessment-id="assessment.id" />
+        <AssessmentHistoryTimeline :assessment-id="assessment.id" :refresh-key="historyRefreshKey" />
       </BaseCard>
 
       <!-- BOTTOM ACTION BAR -->
       <div v-if="assessment.status !== 'COMPLETED' || isAdminView" class="sticky bottom-0 bg-white border-t border-neutral-200 py-4 -mx-6 px-6 mt-6">
         <div class="flex flex-wrap gap-3 justify-between">
-          <router-link
-            :to="backUrl"
+          <button
+            type="button"
             class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50 inline-flex items-center gap-1"
+            @click="navigateBack"
           >
             <ArrowLeft class="w-3.5 h-3.5" />
             {{ backLabel }}
-          </router-link>
+          </button>
 
           <!-- Admin action buttons -->
           <div v-if="isAdminView" class="flex gap-3">
             <button
               type="button"
-              :disabled="isMarkingAbsent"
+              :disabled="isMarkingAbsent || isFormReadOnly"
               class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 text-neutral-600 rounded px-4 py-2 hover:bg-neutral-50 disabled:opacity-50"
               @click="markAbsent"
             >
@@ -428,7 +434,7 @@
             </button>
             <button
               type="button"
-              :disabled="isSaving"
+              :disabled="isSaving || isFormReadOnly"
               class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 text-neutral-700 rounded px-4 py-2 hover:bg-neutral-50 disabled:opacity-50"
               @click="saveDraft"
             >
@@ -448,7 +454,7 @@
           <div v-else class="flex gap-3">
             <button
               type="button"
-              :disabled="isMarkingAbsent"
+              :disabled="isMarkingAbsent || isFormReadOnly"
               class="text-xs font-semibold uppercase tracking-wider border border-red-300 text-red-700 bg-red-50 rounded px-4 py-2 hover:bg-red-100 disabled:opacity-50"
               @click="markAbsent"
             >
@@ -456,7 +462,7 @@
             </button>
             <button
               type="button"
-              :disabled="isSaving"
+              :disabled="isSaving || isFormReadOnly"
               class="text-xs font-semibold uppercase tracking-wider border border-yellow-300 text-yellow-800 bg-yellow-50 rounded px-4 py-2 hover:bg-yellow-100 disabled:opacity-50"
               @click="saveDraft"
             >
@@ -509,6 +515,7 @@ const isSaving = ref(false);
 const isCompleting = ref(false);
 const isMarkingAbsent = ref(false);
 const audioUploadError = ref<string | null>(null);
+const historyRefreshKey = ref(0);
 
 interface AudioRecording {
   id: number;
@@ -589,22 +596,49 @@ const form = ref({
 });
 
 // Detect admin context from query param
-const isAdminView = computed(() => route.query.from === 'admin-verification');
+const sourceView = computed(() => String(route.query.from || ''));
+const returnTo = computed(() => {
+  const value = route.query.returnTo;
+  return typeof value === 'string' && value.length > 0 ? value : null;
+});
+const isAdminView = computed(() => sourceView.value === 'admin-verification');
+const isCoordinatorVerificationView = computed(() => sourceView.value === 'coordinator-verification');
 
 // Computed
 const backUrl = computed(() => {
+  if (returnTo.value) {
+    return returnTo.value;
+  }
   if (isAdminView.value) {
     return '/admin/data-verification';
   }
-  // if (assessment.value?.classContext?.classId) {
-  //   return `/evaluator/classes/${assessment.value.classContext.classId}`;
-  // }
+  if (isCoordinatorVerificationView.value) {
+    return '/coordinator/data-verification';
+  }
   return '/evaluator/assignments';
 });
 
 const backLabel = computed(() => {
   if (isAdminView.value) return 'Back to Data Verification';
+  if (isCoordinatorVerificationView.value) return 'Back to Data Verification';
+  if (sourceView.value === 'evaluator-class-view') return 'Back to Class View';
+  if (sourceView.value === 'evaluator-class-students') return 'Back to Class Students';
+  if (sourceView.value === 'evaluator-dashboard') return 'Back to Dashboard';
   return 'Back to Assignments';
+});
+
+const canUseBrowserBack = computed(() => window.history.length > 1);
+const isFinalizedAssessment = computed(() => {
+  return assessment.value?.status === 'COMPLETED' || assessment.value?.status === 'ABSENT';
+});
+const isFormReadOnly = computed(() => {
+  if (!assessment.value) {
+    return true;
+  }
+  if (assessment.value.status === 'ABSENT') {
+    return true;
+  }
+  return assessment.value.status === 'COMPLETED' && !canReEvaluate.value;
 });
 
 const statusClass = computed(() => {
@@ -625,6 +659,7 @@ const canComplete = computed(() => {
          !isCompleting.value && 
          !isSaving.value && 
          !isMarkingAbsent.value && 
+         !isFinalizedAssessment.value &&
          audioRecordings.value.length > 0;
 });
 
@@ -676,6 +711,7 @@ const activeNotes = computed({
 });
 
 function setActiveOpiLevel(levelId: number) {
+  if (isFormReadOnly.value) return;
   if (isAdminView.value) {
     reEvalForm.value.opiLevelId = levelId;
   } else {
@@ -684,6 +720,7 @@ function setActiveOpiLevel(levelId: number) {
 }
 
 function toggleActiveCriteria(criteriaId: number) {
+  if (isFormReadOnly.value) return;
   if (isAdminView.value) {
     toggleCriteria('reeval', criteriaId);
   } else {
@@ -750,6 +787,7 @@ async function submitReEvaluation() {
 
     assessment.value = await res.json();
     syncFormWithAssessment();
+    historyRefreshKey.value += 1;
     showReEvaluateForm.value = false;
     reEvalForm.value = { opiLevelId: null, reason: '', notes: '', criteriaIds: [], flagForReview: false };
   } catch (e) {
@@ -770,6 +808,15 @@ function toggleCriteria(mode: 'form' | 'reeval', criteriaId: number) {
   }
 
   state.criteriaIds = [...selectedIds];
+}
+
+function navigateBack() {
+  if (canUseBrowserBack.value) {
+    router.back();
+    return;
+  }
+
+  router.push(backUrl.value);
 }
 
 function syncFormWithAssessment() {
@@ -932,7 +979,7 @@ function clearRecordingBlobUrls() {
 // Handle file upload from file picker
 async function handleFileUpload(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (!input.files || input.files.length === 0 || !assessment.value) return;
+  if (!input.files || input.files.length === 0 || !assessment.value || isFormReadOnly.value) return;
 
   const file = input.files[0];
   if (!['audio/mpeg', 'audio/mp3'].includes(file.type)) {
@@ -990,7 +1037,7 @@ async function handleFileUpload(event: Event) {
 
 // Handle audio recording
 async function handleAudioRecorded(blob: Blob) {
-  if (!assessment.value) return;
+  if (!assessment.value || isFormReadOnly.value) return;
   
   try {
     const formData = new FormData();
@@ -1097,7 +1144,7 @@ async function fetchAssessment() {
 }
 
 async function saveDraft() {
-  if (!assessment.value) return;
+  if (!assessment.value || isFormReadOnly.value) return;
 
   isSaving.value = true;
   try {
@@ -1133,6 +1180,7 @@ async function saveDraft() {
 
     assessment.value = await res.json();
     syncFormWithAssessment();
+    historyRefreshKey.value += 1;
   } catch (e) {
     alert(e instanceof Error ? e.message : 'Failed to save draft');
   } finally {
@@ -1141,7 +1189,7 @@ async function saveDraft() {
 }
 
 async function markAbsent() {
-  if (!assessment.value) return;
+  if (!assessment.value || isFormReadOnly.value) return;
 
   if (!confirm('Are you sure you want to mark this student as absent? This action cannot be undone.')) {
     return;
@@ -1151,6 +1199,7 @@ async function markAbsent() {
   try {
     try {
       assessment.value = await api.post<Assessment>(`/assessments/${assessment.value.id}/mark-absent`);
+      historyRefreshKey.value += 1;
     } catch (apiError) {
       const message = apiError instanceof Error ? apiError.message : 'Failed to mark absent';
       const raw = message.replace(/^API Error: \d+ - /, '');
@@ -1178,7 +1227,7 @@ async function markAbsent() {
     
     // Show success and redirect after brief delay
     setTimeout(() => {
-      router.push(backUrl.value);
+      navigateBack();
     }, 1500);
   } catch (e) {
     alert(e instanceof Error ? e.message : 'Failed to mark absent');
@@ -1188,7 +1237,7 @@ async function markAbsent() {
 }
 
 async function handleSubmit() {
-  if (!assessment.value || !form.value.opiLevelId) return;
+  if (!assessment.value || !form.value.opiLevelId || isFormReadOnly.value) return;
 
   isCompleting.value = true;
   try {
@@ -1227,10 +1276,11 @@ async function handleSubmit() {
     }
 
     assessment.value = await res.json();
+    historyRefreshKey.value += 1;
     
     // Show success and redirect after brief delay
     setTimeout(() => {
-      router.push(backUrl.value);
+      navigateBack();
     }, 1500);
   } catch (e) {
     alert(e instanceof Error ? e.message : 'Failed to complete assessment');

@@ -102,7 +102,7 @@
                 </button>
                 <router-link
                   v-else-if="asStudent(row).assessment.id"
-                  :to="`/evaluator/assessments/${asStudent(row).assessment.id}`"
+                  :to="{ path: `/evaluator/assessments/${asStudent(row).assessment.id}`, query: { from: 'evaluator-class-students', returnTo: route.fullPath } }"
                   class="px-3 py-1 text-sm bg-green-100 text-green-800 rounded-md hover:bg-green-200"
                 >
                   View
@@ -327,7 +327,10 @@ async function startAssessment(student: StudentWithAssessment) {
         studentId: student.id,
         cycleId: cycleId.value,
     });
-    router.push(`/evaluator/assessments/${assessment.id}`);
+    router.push({
+      path: `/evaluator/assessments/${assessment.id}`,
+      query: { from: 'evaluator-class-students', returnTo: route.fullPath },
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to start assessment';
     if (message.includes('ASSESSMENT_LOCKED')) {

@@ -27,7 +27,10 @@ export const authGuard = async (
   const requiredRoles = to.meta.roles as string[] | undefined;
   if (requiredRoles && requiredRoles.length > 0) {
     if (!authStore.hasAnyRole(requiredRoles)) {
-      // User doesn't have required role
+      const fallbackRoute = authStore.getDefaultRoute();
+      if (fallbackRoute && fallbackRoute !== '/forbidden' && fallbackRoute !== to.fullPath) {
+        return next(fallbackRoute);
+      }
       return next({ name: 'forbidden' });
     }
   }

@@ -142,7 +142,7 @@
             </div>
           </BaseCard>
         </router-link>
-        <router-link :to="{ name: 'evaluator-class-view' }" class="block">
+        <!-- <router-link :to="{ name: 'evaluator-class-view' }" class="block">
           <BaseCard class="border border-yukon-teal shadow-none hover:bg-cyan-50 transition-colors cursor-pointer">
             <div class="flex items-center justify-between gap-4">
               <div>
@@ -155,7 +155,7 @@
               <ChevronRight class="w-5 h-5 text-yukon-navy" />
             </div>
           </BaseCard>
-        </router-link>
+        </router-link> -->
       </section>
     </template>
   </AppShell>
@@ -163,7 +163,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { ChevronRight, Lock } from 'lucide-vue-next';
+import { ChevronRight } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';

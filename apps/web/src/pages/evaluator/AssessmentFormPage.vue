@@ -483,6 +483,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { Mic, Upload, ArrowLeft, AlertTriangle } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -595,9 +596,9 @@ const backUrl = computed(() => {
   if (isAdminView.value) {
     return '/admin/data-verification';
   }
-  if (assessment.value?.classContext?.classId) {
-    return `/evaluator/classes/${assessment.value.classContext.classId}`;
-  }
+  // if (assessment.value?.classContext?.classId) {
+  //   return `/evaluator/classes/${assessment.value.classContext.classId}`;
+  // }
   return '/evaluator/assignments';
 });
 
@@ -857,15 +858,11 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function isProtectedApiUrl(url: string): boolean {
-  return url.startsWith('/api/') || url.startsWith(`${API_BASE}/`);
-}
-
 function getPlaybackUrl(recording: AudioRecording): string {
   if (recordingBlobUrls.value[recording.id]) {
     return recordingBlobUrls.value[recording.id];
   }
-  return isProtectedApiUrl(recording.downloadUrl) ? '' : recording.downloadUrl;
+  return '';
 }
 
 async function ensureRecordingBlobUrl(recording: AudioRecording): Promise<string> {
@@ -1044,17 +1041,7 @@ async function fetchAudioRecordings() {
   if (!assessment.value) return;
   
   try {
-    const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio`, {
-      headers: await getAuthHeaders(false),
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      console.error('Failed to fetch audio recordings');
-      return;
-    }
-
-    const data = await response.json();
+    const data = await api.get<AudioRecording[]>(`/assessments/${assessment.value.id}/audio`);
     clearRecordingBlobUrls();
     audioRecordings.value = data;
   } catch (error) {
@@ -1162,15 +1149,18 @@ async function markAbsent() {
 
   isMarkingAbsent.value = true;
   try {
-    const res = await fetch(`${API_BASE}/assessments/${assessment.value.id}/mark-absent`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      credentials: 'include',
-    });
+    try {
+      assessment.value = await api.post<Assessment>(`/assessments/${assessment.value.id}/mark-absent`);
+    } catch (apiError) {
+      const message = apiError instanceof Error ? apiError.message : 'Failed to mark absent';
+      const raw = message.replace(/^API Error: \d+ - /, '');
+      let err: { error?: string; message?: string } = {};
+      try {
+        err = JSON.parse(raw);
+      } catch {
+        throw apiError;
+      }
 
-    if (!res.ok) {
-      const err = await res.json();
-      
       // Handle specific error cases
       if (err.error === 'ASSESSMENT_LOCKED') {
         error.value = `This assessment is currently locked by another evaluator. Please try again later.`;
@@ -1185,8 +1175,6 @@ async function markAbsent() {
       
       throw new Error(err.message || 'Failed to mark absent');
     }
-
-    assessment.value = await res.json();
     
     // Show success and redirect after brief delay
     setTimeout(() => {

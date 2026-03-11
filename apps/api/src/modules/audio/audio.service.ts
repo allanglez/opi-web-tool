@@ -114,7 +114,7 @@ export class AudioService {
     return `assessment_${assessmentId}_${Date.now()}_${randomUUID()}.mp3`;
   }
 
-  private getLocalDownloadUrl(assessmentId: number, storageKey: string): string {
+  private getDownloadUrl(assessmentId: number, storageKey: string): string {
     return `/api/v1/assessments/${assessmentId}/audio/${encodeURIComponent(storageKey)}/download`;
   }
 
@@ -238,9 +238,7 @@ export class AudioService {
     return Promise.all(
       recordings.map(async (recording) => ({
         ...recording,
-        downloadUrl: this.storageProvider === 'local'
-          ? this.getLocalDownloadUrl(assessmentId, recording.storageKey)
-          : await this.storageAdapter.getObjectUrl(recording.storageKey),
+        downloadUrl: this.getDownloadUrl(assessmentId, recording.storageKey),
         fileSizeBytes: Number(recording.fileSizeBytes),
       })),
     );

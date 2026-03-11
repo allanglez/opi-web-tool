@@ -12,6 +12,7 @@ async function setupGuard(options: GuardSetupOptions) {
     ? vi.fn().mockRejectedValue(new Error('fetch failed'))
     : vi.fn().mockResolvedValue(undefined);
   const hasAnyRole = vi.fn().mockReturnValue(options.hasAnyRoleResult ?? true);
+  const getDefaultRoute = vi.fn(() => '/evaluator/dashboard');
 
   vi.resetModules();
 
@@ -20,6 +21,7 @@ async function setupGuard(options: GuardSetupOptions) {
       isAuthenticated: options.isAuthenticated,
       fetchMe,
       hasAnyRole,
+      getDefaultRoute,
     }),
   }));
 
@@ -29,6 +31,7 @@ async function setupGuard(options: GuardSetupOptions) {
     authGuard,
     fetchMe,
     hasAnyRole,
+    getDefaultRoute,
   };
 }
 
@@ -91,8 +94,8 @@ describe('authGuard', () => {
     });
   });
 
-  it('redirects to forbidden when role requirements are not met', async () => {
-    const { authGuard, fetchMe, hasAnyRole } = await setupGuard({
+  it('redirects to the default role route when role requirements are not met', async () => {
+    const { authGuard, fetchMe, hasAnyRole, getDefaultRoute } = await setupGuard({
       isAuthenticated: true,
       hasAnyRoleResult: false,
     });
@@ -102,6 +105,7 @@ describe('authGuard', () => {
 
     expect(fetchMe).not.toHaveBeenCalled();
     expect(hasAnyRole).toHaveBeenCalledWith(['ADMIN']);
-    expect(next).toHaveBeenCalledWith({ name: 'forbidden' });
+    expect(getDefaultRoute).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalledWith('/evaluator/dashboard');
   });
 });

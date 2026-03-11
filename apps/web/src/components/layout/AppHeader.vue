@@ -25,17 +25,17 @@
 
           <button
             v-if="user"
-            class="inline-flex items-center gap-1 hover:text-yukon-navy transition-colors"
+            class="inline-flex items-center gap-2 text-[16px] font-bold text-[#0f3f52] transition-colors hover:text-[#0c3444]"
             @click="requestLogout"
           >
-            <LogOut class="w-3.5 h-3.5" />
+            <LogOut class="w-4 h-4" />
             <span>Log out</span>
           </button>
 
           <span v-if="user" class="mx-2 h-3.5 w-px bg-neutral-300"></span>
-          <div v-if="user" class="inline-flex items-center gap-1.5">
-            <User class="w-3.5 h-3.5 text-neutral-500" />
-            <span class="max-w-[180px] truncate text-neutral-700">{{ userDisplayName }}</span>
+          <div v-if="user" class="inline-flex items-center gap-2 text-[16px] font-bold text-[#0f3f52]">
+            <User class="w-4 h-4 text-[#0f3f52]" />
+            <span class="max-w-[180px] truncate">{{ userDisplayName }}</span>
           </div>
         </div>
       </div>

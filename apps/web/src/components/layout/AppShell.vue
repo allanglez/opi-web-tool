@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen flex flex-col">
-    <AppHeader :user="user" @toggle-menu="handleToggleMenu" @logout="handleLogout" />
+    <AppHeader :user="user" @logout="handleLogout" />
     
     <main class="flex-1 w-full max-w-[1280px] mx-auto px-4 md:px-6 py-6 md:py-8">
       <slot />
@@ -33,11 +33,6 @@ withDefaults(defineProps<Props>(), {
 
 const router = useRouter();
 const authStore = useAuthStore();
-
-const handleToggleMenu = () => {
-  // TODO: Implement menu toggle logic in future milestone
-  console.log('Menu toggle clicked');
-};
 
 const handleLogout = () => {
   authStore.logout();

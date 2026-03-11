@@ -31,8 +31,13 @@ export class AudioService {
   ) {
     this.storageProvider = (process.env.AUDIO_STORAGE_PROVIDER || 'local').toLowerCase();
     this.storageAdapter = createStorageAdapter();
-    if (ffmpegPath) {
+    const configuredFfmpegPath = process.env.FFMPEG_BIN || process.env.FFMPEG_PATH;
+    if (configuredFfmpegPath) {
+      ffmpeg.setFfmpegPath(configuredFfmpegPath);
+    } else if (ffmpegPath) {
       ffmpeg.setFfmpegPath(ffmpegPath);
+    } else {
+      ffmpeg.setFfmpegPath('ffmpeg');
     }
   }
 
@@ -141,8 +146,13 @@ export class AudioService {
       });
 
       return await fs.readFile(outputPath);
-    } catch {
-      throw new BadRequestException('Failed to convert uploaded audio to MP3');
+    } catch (error) {
+      const details = error instanceof Error ? error.message : undefined;
+      throw new BadRequestException(
+        details
+          ? `Failed to convert uploaded audio to MP3: ${details}`
+          : 'Failed to convert uploaded audio to MP3',
+      );
     } finally {
       await Promise.all([
         fs.unlink(inputPath).catch(() => undefined),

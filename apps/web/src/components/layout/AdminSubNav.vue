@@ -1,27 +1,31 @@
 <template>
-  <nav class="relative overflow-hidden bg-white border-b border-neutral-200">
-    <img
-      src="../../assets/branding/Aurora-main-full.svg"
-      alt=""
-      class="pointer-events-none absolute right-0 top-0 h-full w-auto max-w-none opacity-95"
-      @error="handleWaveError"
-    />
-    <div class="container relative z-10 mx-auto px-4 md:px-6">
-      <div ref="navRef" class="flex space-x-0 overflow-x-auto scrollbar-hide">
-        <router-link
-          v-for="tab in tabs"
-          :key="tab.name"
-          :to="tab.to"
-          class="px-4 py-3 text-xs font-semibold tracking-wider uppercase border-b-2 transition-colors duration-150 whitespace-nowrap flex-shrink-0"
-          :class="isActive(tab.name) 
-            ? 'border-neutral-900 text-neutral-900 bg-neutral-100' 
-            : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'"
-        >
-          {{ tab.label }}
-        </router-link>
+  <div class="bg-white border-b border-neutral-200">
+    <nav class="bg-white border-b border-neutral-200">
+      <div class="container mx-auto px-4 md:px-6">
+        <div ref="navRef" class="flex space-x-0 overflow-x-auto scrollbar-hide">
+          <router-link
+            v-for="tab in tabs"
+            :key="tab.name"
+            :to="tab.to"
+            class="px-4 py-3 text-xs font-semibold tracking-wider uppercase border-b-2 transition-colors duration-150 whitespace-nowrap flex-shrink-0"
+            :class="isActive(tab.name) 
+              ? 'border-neutral-900 text-neutral-900 bg-neutral-100' 
+              : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'"
+          >
+            {{ tab.label }}
+          </router-link>
+        </div>
       </div>
+    </nav>
+    <div class="relative h-16 md:h-20 overflow-hidden bg-white">
+      <img
+        src="../../assets/branding/Aurora-main-full.svg"
+        alt=""
+        class="pointer-events-none absolute right-0 top-1/2 h-24 md:h-28 lg:h-32 w-auto max-w-none -translate-y-1/2"
+        @error="handleWaveError"
+      />
     </div>
-  </nav>
+  </div>
 </template>
 
 <script setup lang="ts">

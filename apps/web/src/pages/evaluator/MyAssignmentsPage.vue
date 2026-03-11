@@ -34,7 +34,7 @@
             <StatCard :value="stats.totalStudents" label="Showing Students" variant="default" />
             <StatCard :value="stats.completed" label="Completed" variant="green" />
             <StatCard :value="stats.inProgress" label="In Progress" variant="yellow" />
-            <StatCard :value="stats.absent" label="Absent" variant="default" />
+            <StatCard :value="stats.absent" label="Absent" variant="purple" />
             <StatCard :value="stats.notStarted" label="Not Started" variant="red" />
           </div>
         </BaseCard>

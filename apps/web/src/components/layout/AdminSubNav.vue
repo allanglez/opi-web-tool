@@ -27,6 +27,8 @@ const navRef = ref<HTMLElement | null>(null);
 
 const tabs = [
   { name: 'admin-dashboard', label: 'Dashboard', to: { name: 'admin-dashboard' } },
+  { name: 'admin-assignments', label: 'Assignments', to: { name: 'admin-assignments' } },
+  { name: 'admin-scheduling', label: 'Scheduling', to: { name: 'admin-scheduling' } },
   { name: 'admin-data-verification', label: 'Data Verification', to: { name: 'admin-data-verification' } },
   { name: 'admin-user-management', label: 'User Management', to: { name: 'admin-user-management' } },
   { name: 'admin-class-view', label: 'Class View', to: { name: 'admin-class-view' } },

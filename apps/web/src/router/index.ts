@@ -79,6 +79,18 @@ const router = createRouter({
       meta: { roles: ['ADMIN'] },
     },
     {
+      path: '/admin/assignments',
+      name: 'admin-assignments',
+      component: () => import('../pages/admin/AssignmentsPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/scheduling',
+      name: 'admin-scheduling',
+      component: () => import('../pages/admin/SchedulingPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
+    {
       path: '/admin/users',
       name: 'admin-user-management',
       component: () => import('../pages/admin/UserManagementPage.vue'),

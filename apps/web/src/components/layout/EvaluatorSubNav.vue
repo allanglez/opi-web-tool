@@ -1,11 +1,5 @@
 <template>
   <nav class="relative overflow-hidden bg-white border-b border-neutral-200">
-    <img
-      src="../../assets/branding/Aurora-main-full.svg"
-      alt=""
-      class="pointer-events-none absolute right-0 top-0 h-full w-auto max-w-none opacity-95"
-      @error="handleWaveError"
-    />
     <div class="container relative z-10 mx-auto px-4 md:px-6">
       <div ref="navRef" class="flex space-x-0 overflow-x-auto scrollbar-hide">
         <router-link
@@ -59,7 +53,4 @@ watch(() => route.name, () => {
   scrollToActiveTab();
 });
 
-const handleWaveError = (e: Event) => {
-  (e.target as HTMLImageElement).style.display = 'none';
-};
 </script>

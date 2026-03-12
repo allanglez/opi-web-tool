@@ -76,7 +76,4 @@ watch(() => route.name, () => {
   scrollToActiveTab();
 });
 
-const handleWaveError = (e: Event) => {
-  (e.target as HTMLImageElement).style.display = 'none';
-};
 </script>

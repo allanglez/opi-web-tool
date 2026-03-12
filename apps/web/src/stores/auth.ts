@@ -19,13 +19,20 @@ export interface User {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const { getAccessTokenSilently, logout: auth0Logout } = useAuth0();
   const user = ref<User | null>(null);
   const isAuthenticated = ref(false);
 
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const token = ref<string | null>(null);
+
+  const getAuth0Bindings = () => {
+    if (!isAuth0Mode) {
+      return null;
+    }
+
+    return useAuth0();
+  };
 
   const hasRole = (role: string) => {
     return user.value?.roles.includes(role) || false;
@@ -53,7 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
     return '/forbidden';
   };
 
-  const fetchMe = async (mockUserId?: number) => {
+  const fetchMe = async (mockUserId?: number, mockRole?: string) => {
     isLoading.value = true;
     error.value = null;
 
@@ -61,6 +68,12 @@ export const useAuthStore = defineStore('auth', () => {
       const headers: Record<string, string> = {};
 
       if (isAuth0Mode) {
+        const auth0 = getAuth0Bindings();
+        if (!auth0) {
+          throw new Error('Auth0 client is unavailable in auth0 mode');
+        }
+
+        const { getAccessTokenSilently } = auth0;
         token.value = await getAccessTokenSilently();
         console.log('Auth0 Access Token format:', token.value ? token.value.substring(0, 15) + '...' : 'null');
         if (token.value) {
@@ -73,6 +86,9 @@ export const useAuthStore = defineStore('auth', () => {
       const resolvedMockUserId = mockUserId ?? user.value?.id;
       if (isMockAuthMode && resolvedMockUserId) {
         headers['X-Mock-User-Id'] = String(resolvedMockUserId);
+      }
+      if (isMockAuthMode && mockRole) {
+        headers['X-Mock-Role'] = mockRole;
       }
 
       const response = await fetch(`${API_BASE}/me`, {
@@ -103,6 +119,12 @@ export const useAuthStore = defineStore('auth', () => {
   const getToken = async () => {
     if (!isAuth0Mode) return token.value;
     try {
+      const auth0 = getAuth0Bindings();
+      if (!auth0) {
+        return null;
+      }
+
+      const { getAccessTokenSilently } = auth0;
       const freshToken = await getAccessTokenSilently();
       token.value = freshToken;
       return freshToken;
@@ -119,6 +141,12 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null;
 
     if (isAuth0Mode) {
+      const auth0 = getAuth0Bindings();
+      if (!auth0) {
+        return;
+      }
+
+      const { logout: auth0Logout } = auth0;
       auth0Logout({
         logoutParams: {
           returnTo: `${window.location.origin}/login`,

@@ -69,7 +69,7 @@
                 data-testid="mock-login-admin"
                 type="button"
                 class="rounded bg-yukon-navy px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-yukon-teal"
-                @click="mockLogin(1)"
+                @click="mockLogin('ADMIN')"
               >
                 Login as Admin
               </button>
@@ -77,7 +77,7 @@
                 data-testid="mock-login-coordinator"
                 type="button"
                 class="rounded bg-yukon-navy px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-yukon-teal"
-                @click="mockLogin(2)"
+                @click="mockLogin('COORDINATOR')"
               >
                 Login as Coordinator
               </button>
@@ -85,7 +85,7 @@
                 data-testid="mock-login-evaluator"
                 type="button"
                 class="rounded bg-yukon-navy px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-yukon-teal"
-                @click="mockLogin(3)"
+                @click="mockLogin('EVALUATOR')"
               >
                 Login as Evaluator
               </button>
@@ -116,9 +116,9 @@ const emailAddress = ref('');
 const isMockMode = isMockAuthMode;
 const isAuth0AuthMode = isAuth0Mode;
 
-const mockLogin = async (userId: number) => {
+const mockLogin = async (role: 'ADMIN' | 'COORDINATOR' | 'EVALUATOR') => {
   try {
-    await authStore.fetchMe(userId);
+    await authStore.fetchMe(undefined, role);
     const redirect = (route.query.redirect as string) || authStore.getDefaultRoute();
     router.push(redirect);
   } catch (error) {

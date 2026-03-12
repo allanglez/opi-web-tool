@@ -22,13 +22,42 @@ export class MockAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const mockUserId = request.headers['x-mock-user-id'];
+    const mockRoleHeader = request.headers['x-mock-role'];
+    const mockRole =
+      typeof mockRoleHeader === 'string' && mockRoleHeader.trim().length > 0
+        ? mockRoleHeader.trim().toUpperCase()
+        : undefined;
+
+    let user =
+      mockRole
+        ? await this.prisma.user.findFirst({
+            where: {
+              isActive: true,
+              userRoles: {
+                some: {
+                  role: {
+                    name: mockRole,
+                  },
+                },
+              },
+            },
+            include: {
+              userRoles: {
+                include: {
+                  role: true,
+                },
+              },
+            },
+          })
+        : null;
 
     // Use provided user ID or default to first admin user
     let userId: number;
-    if (mockUserId) {
+    if (user) {
+      userId = user.id;
+    } else if (mockUserId) {
       userId = parseInt(mockUserId, 10);
     } else {
-      // Find first admin user in database
       const adminUser = await this.prisma.user.findFirst({
         where: {
           isActive: true,
@@ -43,24 +72,24 @@ export class MockAuthGuard implements CanActivate {
       });
 
       if (!adminUser) {
-        // If no admin exists, use user ID 1 as fallback
         userId = 1;
       } else {
         userId = adminUser.id;
       }
     }
 
-    // Fetch full user data with roles
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
+    if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          userRoles: {
+            include: {
+              role: true,
+            },
           },
         },
-      },
-    });
+      });
+    }
 
     if (user) {
       request.user = {
@@ -74,15 +103,14 @@ export class MockAuthGuard implements CanActivate {
         mockAuth: true,
       };
     } else {
-      // Fallback mock user if database lookup fails
       request.user = {
         id: userId,
         externalAuthId: 'mock-user',
-        email: 'admin@mock.local',
+        email: `${(mockRole || 'admin').toLowerCase()}@mock.local`,
         firstName: 'Mock',
-        lastName: 'Admin',
+        lastName: mockRole || 'Admin',
         isActive: true,
-        roles: ['ADMIN'],
+        roles: [mockRole || 'ADMIN'],
         mockAuth: true,
       };
     }

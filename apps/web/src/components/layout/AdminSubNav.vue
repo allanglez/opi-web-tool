@@ -1,6 +1,12 @@
 <template>
-  <div class="bg-white border-b border-neutral-200">
-    <nav class="bg-white border-b border-neutral-200">
+  <div class="relative bg-white border-b-4 border-[#f2b233]">
+    <!-- <img
+      src="../../assets/branding/Aurora-main-full.svg"
+      alt=""
+      class="pointer-events-none absolute right-0 top-[52px] z-0 h-24 md:h-28 lg:h-32 w-auto max-w-none"
+      @error="handleWaveError"
+    /> -->
+    <nav class="relative z-10 bg-white border-b border-neutral-200">
       <div class="container mx-auto px-4 md:px-6">
         <div ref="navRef" class="flex space-x-0 overflow-x-auto scrollbar-hide">
           <router-link
@@ -17,14 +23,14 @@
         </div>
       </div>
     </nav>
-    <div class="relative h-16 md:h-20 overflow-hidden bg-white">
+    <!-- <div class="pointer-events-none absolute inset-x-0 top-full z-0 h-20 md:h-24 lg:h-28 overflow-hidden">
       <img
         src="../../assets/branding/Aurora-main-full.svg"
         alt=""
-        class="pointer-events-none absolute right-0 top-1/2 h-24 md:h-28 lg:h-32 w-auto max-w-none -translate-y-1/2"
+        class="absolute right-0 top-[-22px] md:top-[-26px] lg:top-[-30px] h-24 md:h-28 lg:h-32 w-auto max-w-none"
         @error="handleWaveError"
       />
-    </div>
+    </div> -->
   </div>
 </template>
 

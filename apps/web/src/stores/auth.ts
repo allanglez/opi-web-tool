@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { useAuth0 } from '@auth0/auth0-vue';
 import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
+import { getAuth0AccessToken, logoutWithAuth0 } from '../auth/auth0';
 
 const API_BASE =
   import.meta.env.VITE_API_URL ||
@@ -26,14 +26,6 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null);
   const token = ref<string | null>(null);
 
-  const getAuth0Bindings = () => {
-    if (!isAuth0Mode) {
-      return null;
-    }
-
-    return useAuth0();
-  };
-
   const hasRole = (role: string) => {
     return user.value?.roles.includes(role) || false;
   };
@@ -45,6 +37,13 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => hasRole('ADMIN'));
   const isCoordinator = computed(() => hasRole('COORDINATOR'));
   const isEvaluator = computed(() => hasRole('EVALUATOR'));
+
+  const clearSession = () => {
+    user.value = null;
+    isAuthenticated.value = false;
+    error.value = null;
+    token.value = null;
+  };
 
   const getDefaultRoute = () => {
     if (hasRole('ADMIN')) {
@@ -68,13 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
       const headers: Record<string, string> = {};
 
       if (isAuth0Mode) {
-        const auth0 = getAuth0Bindings();
-        if (!auth0) {
-          throw new Error('Auth0 client is unavailable in auth0 mode');
-        }
-
-        const { getAccessTokenSilently } = auth0;
-        token.value = await getAccessTokenSilently();
+        token.value = await getAuth0AccessToken();
         console.log('Auth0 Access Token format:', token.value ? token.value.substring(0, 15) + '...' : 'null');
         if (token.value) {
           headers.Authorization = `Bearer ${token.value}`;
@@ -119,13 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
   const getToken = async () => {
     if (!isAuth0Mode) return token.value;
     try {
-      const auth0 = getAuth0Bindings();
-      if (!auth0) {
-        return null;
-      }
-
-      const { getAccessTokenSilently } = auth0;
-      const freshToken = await getAccessTokenSilently();
+      const freshToken = await getAuth0AccessToken();
       token.value = freshToken;
       return freshToken;
     } catch (err) {
@@ -134,25 +121,24 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const logout = () => {
-    user.value = null;
-    isAuthenticated.value = false;
-    error.value = null;
-    token.value = null;
-
+  const logout = async () => {
     if (isAuth0Mode) {
-      const auth0 = getAuth0Bindings();
-      if (!auth0) {
+      try {
+        logoutWithAuth0({
+          logoutParams: {
+            returnTo: window.location.origin,
+          },
+        });
+        return;
+      } catch (err) {
+        console.error('Auth0 logout failed:', err);
+        clearSession();
+        window.location.assign('/login');
         return;
       }
-
-      const { logout: auth0Logout } = auth0;
-      auth0Logout({
-        logoutParams: {
-          returnTo: `${window.location.origin}/login`,
-        },
-      });
     }
+
+    clearSession();
   };
 
   return {

@@ -166,6 +166,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ChevronRight } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { isMockAuthMode } from '../../auth/mode';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -283,7 +284,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  if (authStore.user?.id) {
+  if (isMockAuthMode && authStore.user?.id) {
     headers['X-Mock-User-Id'] = String(authStore.user.id);
   }
   return headers;
@@ -295,6 +296,12 @@ async function fetchDashboard() {
       headers: await getAuthHeaders(),
       credentials: 'include',
     });
+
+    if (res.status === 401) {
+      stopPolling();
+      router.replace({ name: 'login' });
+      return;
+    }
 
     if (res.status === 403) {
       const err = await res.json();

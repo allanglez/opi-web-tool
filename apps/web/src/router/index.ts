@@ -114,18 +114,18 @@ const router = createRouter({
       component: () => import('../pages/admin/ProgressTrackingPage.vue'),
       meta: { roles: ['ADMIN'] },
     },
-    {
-      path: '/admin/audit-log',
-      name: 'admin-audit-log',
-      component: () => import('../pages/admin/AuditLogPage.vue'),
-      meta: { roles: ['ADMIN'] },
-    },
-    {
-      path: '/admin/reports',
-      name: 'admin-reports',
-      component: () => import('../pages/admin/ReportsExportPage.vue'),
-      meta: { roles: ['ADMIN'] },
-    },
+    // {
+    //   path: '/admin/audit-log',
+    //   name: 'admin-audit-log',
+    //   component: () => import('../pages/admin/AuditLogPage.vue'),
+    //   meta: { roles: ['ADMIN'] },
+    // },
+    // {
+    //   path: '/admin/reports',
+    //   name: 'admin-reports',
+    //   component: () => import('../pages/admin/ReportsExportPage.vue'),
+    //   meta: { roles: ['ADMIN'] },
+    // },
     {
       path: '/admin/retention',
       name: 'admin-retention',

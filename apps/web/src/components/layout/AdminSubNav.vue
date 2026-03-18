@@ -50,8 +50,8 @@ const allTabs = [
   { name: 'admin-data-verification', label: 'Data Verification', adminOnly: false },
   { name: 'admin-user-management', label: 'User Management', adminOnly: true },
   { name: 'admin-class-view', label: 'Class View', adminOnly: false },
-  { name: 'admin-reports', label: 'Reports', adminOnly: false },
-  { name: 'admin-audit-log', label: 'Audit Log', adminOnly: false },
+  // { name: 'admin-reports', label: 'Reports', adminOnly: false },
+  // { name: 'admin-audit-log', label: 'Audit Log', adminOnly: false },
 ];
 
 const tabs = computed(() =>

@@ -9,9 +9,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { RetentionService } from './retention.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 
+@ApiTags('Retention')
+@ApiBearerAuth('access-token')
 @Controller()
 export class RetentionController {
   constructor(private readonly retentionService: RetentionService) {}
@@ -22,6 +25,7 @@ export class RetentionController {
    */
   @Get('admin/retention/config')
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'Get data retention settings for assessment cycles' })
   async getRetentionConfig(@Query('cycleId') cycleId?: string) {
     const parsedCycleId = cycleId ? parseInt(cycleId, 10) : undefined;
     return this.retentionService.getRetentionConfig(parsedCycleId);
@@ -33,6 +37,7 @@ export class RetentionController {
    */
   @Patch('admin/retention/config')
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'Update retention period (days) for a specific cycle' })
   async updateRetentionConfig(
     @Body('cycleId', ParseIntPipe) cycleId: number,
     @Body('retentionDays') retentionDays: number | null,
@@ -50,6 +55,7 @@ export class RetentionController {
   @Post('admin/reset')
   @Roles('ADMIN')
   @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Start an annual data reset: export and purge cycle data' })
   async startReset(@Body('cycleId', ParseIntPipe) cycleId: number) {
     return this.retentionService.startReset(cycleId);
   }
@@ -60,6 +66,7 @@ export class RetentionController {
    */
   @Get('admin/reset/status')
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'Check the status of an ongoing reset operation' })
   getResetStatus() {
     return this.retentionService.getResetStatus();
   }

@@ -1,7 +1,10 @@
 import { Controller, Get, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 
+@ApiTags('Auth')
+@ApiBearerAuth('access-token')
 @Controller('me')
 export class AuthController {
   constructor(
@@ -9,6 +12,7 @@ export class AuthController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Get the currently authenticated user profile' })
   async getMe(
     @CurrentUser() user: AuthUser,
     @Req() req: { headers: { authorization?: string } },

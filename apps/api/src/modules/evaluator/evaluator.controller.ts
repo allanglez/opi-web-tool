@@ -7,22 +7,27 @@ import {
     Body,
     ParseIntPipe,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { EvaluatorService } from './evaluator.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+@ApiTags('Evaluator')
+@ApiBearerAuth('access-token')
 @Controller('evaluator')
 export class EvaluatorController {
     constructor(private readonly evaluatorService: EvaluatorService) { }
 
     @Get('dashboard')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: "Personal evaluator dashboard: own progress stats, assigned schools, and next students to assess" })
     async getDashboard(@CurrentUser() user: { id: number }) {
         return this.evaluatorService.getDashboard(user.id);
     }
 
     @Get('assignments')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'All student assignments grouped by school for the logged-in evaluator' })
     async getAssignments(
         @CurrentUser() user: { id: number },
         @Query('schoolId') schoolId?: string,
@@ -35,6 +40,7 @@ export class EvaluatorController {
 
     @Get('class-view')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Class-level view with student assessment statuses; coordinators/admins see all classes with pagination' })
     async getClassView(
         @CurrentUser() user: { id: number; roles: string[] },
         @Query('schoolId') schoolId?: string,
@@ -62,6 +68,7 @@ export class EvaluatorController {
 
     @Get('classes/:classId/notes')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Get notes/comments for a class' })
     async getClassNotes(
         @Param('classId', ParseIntPipe) classId: number,
         @CurrentUser() user: { id: number; roles: string[] },
@@ -71,6 +78,7 @@ export class EvaluatorController {
 
     @Post('classes/:classId/notes')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Add a note/comment to a class' })
     async saveClassNotes(
         @Param('classId', ParseIntPipe) classId: number,
         @CurrentUser() user: { id: number; roles: string[] },
@@ -81,12 +89,14 @@ export class EvaluatorController {
 
     @Get('classes')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'List classes assigned to the logged-in evaluator with progress summary' })
     async getAssignedClasses(@CurrentUser() user: { id: number }) {
         return this.evaluatorService.getAssignedClasses(user.id);
     }
 
     @Get('classes/:classId/students')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'List students in a class with their assessment status and scores' })
     async getClassStudents(
         @Param('classId', ParseIntPipe) classId: number,
         @CurrentUser() user: { id: number; roles: string[] },

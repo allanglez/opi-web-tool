@@ -1,19 +1,24 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 
+@ApiTags('Dashboard')
+@ApiBearerAuth('access-token')
 @Controller('admin/dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('stats')
   @Roles('ADMIN', 'COORDINATOR')
+  @ApiOperation({ summary: 'System-wide admin dashboard: overall progress, school completion rates, evaluator workload, and recent activity' })
   async getStats() {
     return this.dashboardService.getAdminDashboardStats();
   }
 
   @Get('verification')
   @Roles('ADMIN', 'COORDINATOR')
+  @ApiOperation({ summary: 'Assessment verification view with full filtering across the system' })
   async getVerification(
     @Query('schoolId') schoolId?: string,
     @Query('classId') classId?: string,

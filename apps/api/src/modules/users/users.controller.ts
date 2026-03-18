@@ -11,21 +11,26 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 
+@ApiTags('Users')
+@ApiBearerAuth('access-token')
 @Controller('admin/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'List all users with their roles (admin view)' })
   async listUsers() {
     return this.usersService.listAllWithRoles();
   }
 
   @Post()
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'Create a new user with a role (ADMIN, COORDINATOR, or EVALUATOR)' })
   async createUser(
     @Body()
     body: {
@@ -63,6 +68,7 @@ export class UsersController {
 
   @Put(':id')
   @Roles('ADMIN')
+  @ApiOperation({ summary: "Update an existing user's name, email, and role" })
   async updateUser(
     @Param('id', ParseIntPipe) id: number,
     @Body()
@@ -98,6 +104,7 @@ export class UsersController {
 
   @Patch(':id/deactivate')
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'Deactivate a user to prevent login and API access' })
   async deactivateUser(@Param('id', ParseIntPipe) id: number) {
     const user = await this.usersService.setActiveStatus(id, false);
     if (!user) {
@@ -108,6 +115,7 @@ export class UsersController {
 
   @Patch(':id/activate')
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'Reactivate a previously deactivated user' })
   async activateUser(@Param('id', ParseIntPipe) id: number) {
     const user = await this.usersService.setActiveStatus(id, true);
     if (!user) {

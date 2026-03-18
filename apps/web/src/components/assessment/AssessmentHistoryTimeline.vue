@@ -111,6 +111,7 @@ const isExpanded = ref(false);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const entries = ref<TimelineEntry[]>([]);
+const needsRefresh = ref(false);
 
 async function fetchTimeline() {
   if (!props.assessmentId) return;
@@ -213,21 +214,21 @@ function getBadgeClass(action: string): string {
 
 // Fetch on expand
 watch(isExpanded, (val) => {
-  if (val && entries.value.length === 0) {
+  if (val && (entries.value.length === 0 || needsRefresh.value)) {
+    needsRefresh.value = false;
     fetchTimeline();
   }
 });
 
-// Re-fetch when assessment changes
+// Re-fetch when refreshKey changes (triggered after save)
 watch(
   () => props.refreshKey,
   () => {
-    if (!props.assessmentId) {
-      return;
-    }
+    if (!props.assessmentId) return;
 
     if (!isExpanded.value) {
-      entries.value = [];
+      // Mark dirty so the next expand fetches fresh data; don't clear entries (preserves counter)
+      needsRefresh.value = true;
       return;
     }
 

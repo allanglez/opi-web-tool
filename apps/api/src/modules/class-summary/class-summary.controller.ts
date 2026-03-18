@@ -4,15 +4,19 @@ import {
   Param,
   NotFoundException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ClassSummaryService } from './class-summary.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 
+@ApiTags('Class Summary')
+@ApiBearerAuth('access-token')
 @Controller('classes')
 export class ClassSummaryController {
   constructor(private readonly classSummaryService: ClassSummaryService) {}
 
   @Get(':id/summary')
+  @ApiOperation({ summary: 'Generate a summary report for a class including student progress and scores' })
   async getClassSummary(
     @Param('id') classId: string,
     @CurrentUser() _user: any,
@@ -35,6 +39,7 @@ export class ClassSummaryController {
   }
 
   @Get(':id/submission-status')
+  @ApiOperation({ summary: 'Check whether a class has been submitted and its current submission state' })
   async getSubmissionStatus(
     @Param('id') classId: string,
     @CurrentUser() _user: any,
@@ -54,6 +59,7 @@ export class ClassSummaryController {
 
   @Get(':id/needs-review')
   @Roles('COORDINATOR', 'ADMIN')
+  @ApiOperation({ summary: 'List assessments in a cycle that have been flagged for review' })
   async getNeedsReviewAssessments(
     @Param('id') cycleId: string,
     @CurrentUser() _user: any,

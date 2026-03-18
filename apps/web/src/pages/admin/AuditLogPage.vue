@@ -1,7 +1,9 @@
 <template>
   <AppShell :user="currentUser">
+    <AdminSubNav />
+
     <!-- Page Title -->
-    <div class="mb-8">
+    <div class="mt-8 mb-8">
       <h1 class="text-3xl font-bold text-neutral-900 mb-2">Audit Log</h1>
       <p class="text-neutral-600">View all assessment-related actions and changes across the system.</p>
     </div>
@@ -165,6 +167,7 @@ import { ref, computed, onMounted } from 'vue';
 import { FileText } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
+import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';

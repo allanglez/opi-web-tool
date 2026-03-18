@@ -5,9 +5,12 @@ import {
     Query,
     ParseIntPipe,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuditService, AuditAction } from './audit.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 
+@ApiTags('Audit')
+@ApiBearerAuth('access-token')
 @Controller('audit')
 export class AuditController {
     constructor(private readonly auditService: AuditService) { }
@@ -19,6 +22,7 @@ export class AuditController {
      */
     @Get('assessments/:id')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Get the full change history timeline for a specific assessment' })
     async getAssessmentTimeline(
         @Param('id', ParseIntPipe) assessmentId: number,
     ) {
@@ -32,6 +36,7 @@ export class AuditController {
      */
     @Get('logs')
     @Roles('ADMIN')
+    @ApiOperation({ summary: 'Query paginated audit logs with filters (by assessment, action type, user, date range)' })
     async getAuditLogs(
         @Query('assessmentId') assessmentId?: string,
         @Query('action') action?: string,
@@ -58,6 +63,7 @@ export class AuditController {
      */
     @Get('actions')
     @Roles('ADMIN', 'COORDINATOR')
+    @ApiOperation({ summary: 'Get the list of distinct audit action types (for filter dropdowns)' })
     async getDistinctActions() {
         return this.auditService.getDistinctActions();
     }

@@ -36,20 +36,29 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { useAuthStore } from '../../stores/auth';
 
 const route = useRoute();
+const authStore = useAuthStore();
 const navRef = ref<HTMLElement | null>(null);
 
-const tabs = [
-  { name: 'admin-dashboard', label: 'Dashboard', to: { name: 'admin-dashboard' } },
-  { name: 'admin-assignments', label: 'Assignments', to: { name: 'admin-assignments' } },
-  { name: 'admin-scheduling', label: 'Scheduling', to: { name: 'admin-scheduling' } },
-  { name: 'admin-data-verification', label: 'Data Verification', to: { name: 'admin-data-verification' } },
-  { name: 'admin-user-management', label: 'User Management', to: { name: 'admin-user-management' } },
-  { name: 'admin-class-view', label: 'Class View', to: { name: 'admin-class-view' } },
-  // { name: 'admin-progress-tracking', label: 'Progress Tracking', to: { name: 'admin-progress-tracking' } },
+const allTabs = [
+  { name: 'admin-dashboard', label: 'Dashboard', adminOnly: false },
+  { name: 'admin-assignments', label: 'Assignments', adminOnly: false },
+  { name: 'admin-scheduling', label: 'Scheduling', adminOnly: false },
+  { name: 'admin-data-verification', label: 'Data Verification', adminOnly: false },
+  { name: 'admin-user-management', label: 'User Management', adminOnly: true },
+  { name: 'admin-class-view', label: 'Class View', adminOnly: false },
+  { name: 'admin-reports', label: 'Reports', adminOnly: false },
+  { name: 'admin-audit-log', label: 'Audit Log', adminOnly: false },
 ];
+
+const tabs = computed(() =>
+  allTabs
+    .filter((tab) => !tab.adminOnly || authStore.isAdmin)
+    .map((tab) => ({ name: tab.name, label: tab.label, to: { name: tab.name } })),
+);
 
 const isActive = (tabName: string): boolean => {
   if (tabName === 'admin-class-view') {

@@ -31,8 +31,8 @@
     </div>
 
     <template v-else-if="assessment">
-      <!-- Re-evaluation Mode Banner (admin/coordinator on completed assessment) -->
-      <div v-if="isAdminView && assessment.status === 'COMPLETED'" class="mt-6 mb-4 border border-yellow-300 bg-yellow-50 rounded-lg px-5 py-4 flex items-start gap-3">
+      <!-- Re-evaluation Mode Banner (only for completed assessments) -->
+      <div v-if="assessment.status === 'COMPLETED'" class="mt-6 mb-4 border border-yellow-300 bg-yellow-50 rounded-lg px-5 py-4 flex items-start gap-3">
         <AlertTriangle class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
         <div>
           <p class="text-sm font-bold text-yellow-900">Re-evaluation Mode</p>
@@ -41,17 +41,6 @@
           </p>
         </div>
       </div>
-      <!-- Standard re-eval banner for non-admin coordinator -->
-      <section v-else-if="assessment.status === 'COMPLETED' && canReEvaluate" class="mt-6 mb-4">
-        <BaseCard>
-          <div class="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3">
-            <p class="text-sm font-semibold text-yellow-900">Re-evaluation Mode</p>
-            <p class="text-xs text-yellow-800 mt-1">
-              This assessment has been completed. Any changes will be recorded in the history log.
-            </p>
-          </div>
-        </BaseCard>
-      </section>
 
       <!-- TOP BACK LINK -->
       <div class="mt-4 mb-2">
@@ -267,7 +256,7 @@
           ></textarea>
 
           <!-- Re-evaluation Required checkbox (admin view only) -->
-          <div v-if="isAdminView" class="mt-4 pt-4 border-t border-neutral-200">
+          <div v-if="assessment.status === 'COMPLETED'" class="mt-4 pt-4 border-t border-neutral-200">
             <label class="flex items-start gap-2 cursor-pointer">
               <input
                 v-model="reEvalForm.flagForReview"
@@ -282,7 +271,7 @@
           </div>
 
           <!-- Reason for re-evaluation (admin view, required) -->
-          <div v-if="isAdminView" class="mt-4">
+          <div v-if="assessment.status === 'COMPLETED'" class="mt-4">
             <label class="block text-sm font-semibold text-neutral-700 mb-1">
               Reason for Change <span class="text-red-500">*</span>
             </label>
@@ -296,114 +285,53 @@
         </BaseCard>
       </section>
 
-      <!-- Completion Details Card (admin view) -->
-      <BaseCard v-if="isAdminView && assessment.status === 'COMPLETED'" class="mb-6">
-        <h3 class="text-base font-bold text-neutral-900 mb-3">Completion Details</h3>
-        <div class="space-y-1 text-sm">
-          <div class="flex gap-2">
-            <span class="text-neutral-600">Completed by:</span>
-            <span class="font-semibold text-green-700">
-              {{ assessment.evaluator ? `${assessment.evaluator.firstName} ${assessment.evaluator.lastName}` : 'Unknown' }}
-            </span>
-          </div>
-          <div class="flex gap-2">
-            <span class="text-neutral-600">Completed on:</span>
-            <span class="font-semibold text-green-700">{{ formatDateShort(assessment.completedAt) }}</span>
+      <!-- Completion Details + Last Re-evaluation Details (all users on completed assessments) -->
+      <div v-if="assessment.status === 'COMPLETED'" class="mb-4">
+        <div class="rounded-lg border border-green-200 bg-green-50 p-5">
+          <h3 class="text-sm font-bold text-green-900 uppercase tracking-wider mb-3">Completion Details</h3>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex gap-2">
+              <span class="text-green-700 font-medium">Completed by:</span>
+              <span class="font-bold text-green-900">
+                {{ assessment.evaluator ? `${assessment.evaluator.firstName} ${assessment.evaluator.lastName}` : 'Unknown' }}
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <span class="text-green-700 font-medium">Completed on:</span>
+              <span class="font-bold text-green-900">{{ formatDateShort(assessment.completedAt) }}</span>
+            </div>
           </div>
         </div>
-        <div v-if="reEvalError" class="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">
+
+        <!-- Last Re-evaluation Details (only if re-evaluated after completion) -->
+        <div v-if="hasBeenReEvaluated && assessment.score?.updater" class="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-5">
+          <h3 class="text-sm font-bold text-blue-900 uppercase tracking-wider mb-3">Last Re-evaluation Details</h3>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex gap-2">
+              <span class="text-blue-700 font-medium">Updated by:</span>
+              <span class="font-bold text-blue-900">
+                {{ `${assessment.score.updater.firstName} ${assessment.score.updater.lastName}` }}
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <span class="text-blue-700 font-medium">Last update:</span>
+              <span class="font-bold text-blue-900">{{ formatDateTime(assessment.lastModifiedAt) }}</span>
+            </div>
+            <div v-if="assessment.score.opiLevel" class="flex gap-2">
+              <span class="text-blue-700 font-medium">Current OPI Level:</span>
+              <span class="font-bold text-blue-900">{{ assessment.score.opiLevel.description }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Re-evaluation save feedback (only shown during active re-eval session) -->
+        <div v-if="canReEvaluate && reEvalError" class="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
           {{ reEvalError }}
         </div>
-      </BaseCard>
-
-      <!-- Standard completed view for non-admin -->
-      <div v-else-if="assessment.status === 'COMPLETED' && canReEvaluate" class="mb-6">
-        <BaseCard>
-          <div class="flex items-center justify-between flex-wrap gap-3">
-            <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex-1">
-              <p class="text-green-800 text-sm">Assessment completed on {{ formatDate(assessment.completedAt) }}</p>
-            </div>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-50 whitespace-nowrap"
-              @click="navigateBack"
-            >
-              <ArrowLeft class="w-3.5 h-3.5" />
-              {{ backLabel }}
-            </button>
-          </div>
-        </BaseCard>
-      </div>
-      <div v-else-if="assessment.status === 'COMPLETED'" class="mb-6">
-        <BaseCard>
-          <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-            <p class="text-green-800 text-sm">Assessment completed on {{ formatDate(assessment.completedAt) }}</p>
-          </div>
-        </BaseCard>
-      </div>
-
-      <!-- Re-evaluation Section for non-admin coordinator -->
-      <BaseCard v-if="!isAdminView && assessment.status === 'COMPLETED' && canReEvaluate" class="mb-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-neutral-900">Re-evaluate Assessment</h3>
-          <button
-            class="text-sm text-orange-600 hover:text-orange-800 font-medium"
-            @click="toggleReEvaluateForm"
-          >
-            {{ showReEvaluateForm ? 'Cancel' : 'Change Score' }}
-          </button>
+        <div v-if="canReEvaluate && reEvalSuccess" class="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+          {{ reEvalSuccess }}
         </div>
-
-        <div v-if="showReEvaluateForm" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-2">New OPI Level <span class="text-red-500">*</span></label>
-            <div class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
-              <button
-                v-for="level in opiLevels"
-                :key="level.id"
-                type="button"
-                class="px-4 py-3 text-sm font-medium rounded-lg border-2 transition-colors"
-                :class="reEvalForm.opiLevelId === level.id
-                  ? 'border-orange-600 bg-orange-50 text-orange-800'
-                  : 'border-neutral-200 hover:border-neutral-300 text-neutral-700'"
-                @click="reEvalForm.opiLevelId = level.id"
-              >
-                {{ level.id }}
-              </button>
-            </div>
-          </div>
-
-          <div v-if="reEvalForm.opiLevelId" class="border-t border-neutral-200 pt-4">
-            <h4 class="text-sm font-semibold text-neutral-800 mb-2">Assessment Criteria for Level {{ reEvalForm.opiLevelId }}</h4>
-            <p v-if="selectedReEvalLevelCriteria.length === 0" class="text-sm text-neutral-500">No active criteria configured for this level.</p>
-            <div v-else class="grid gap-2 sm:grid-cols-2">
-              <label v-for="criteria in selectedReEvalLevelCriteria" :key="criteria.id" class="flex items-start gap-2 text-sm text-neutral-700">
-                <input type="checkbox" class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-orange-700 focus:ring-orange-500" :checked="reEvalForm.criteriaIds.includes(criteria.id)" @change="toggleCriteria('reeval', criteria.id)" />
-                <span>{{ criteria.description }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-2">Reason for Change <span class="text-red-500">*</span></label>
-            <textarea v-model="reEvalForm.reason" rows="2" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="Explain why the score is being changed..."></textarea>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-2">Updated Notes (Optional)</label>
-            <textarea v-model="reEvalForm.notes" rows="2" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="Additional notes..."></textarea>
-          </div>
-
-          <div class="flex gap-3">
-            <button :disabled="!canSubmitReEval || isReEvaluating" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed" @click="submitReEvaluation">
-              {{ isReEvaluating ? 'Saving...' : 'Submit Re-evaluation' }}
-            </button>
-            <button class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded-md hover:bg-neutral-200" @click="showReEvaluateForm = false">Cancel</button>
-          </div>
-
-          <div v-if="reEvalError" class="text-sm text-red-600 bg-red-50 p-3 rounded-md">{{ reEvalError }}</div>
-        </div>
-      </BaseCard>
+      </div>
 
       <!-- Assessment History Timeline -->
       <BaseCard class="mb-6">
@@ -411,7 +339,7 @@
       </BaseCard>
 
       <!-- BOTTOM ACTION BAR -->
-      <div v-if="assessment.status !== 'COMPLETED' || isAdminView" class="sticky bottom-0 bg-white border-t border-neutral-200 py-4 -mx-6 px-6 mt-6">
+      <div class="sticky bottom-0 bg-white border-t border-neutral-200 py-4 -mx-6 px-6 mt-6">
         <div class="flex flex-wrap gap-3 justify-between">
           <button
             type="button"
@@ -423,10 +351,10 @@
           </button>
 
           <!-- Admin action buttons -->
-          <div v-if="isAdminView" class="flex gap-3">
+          <div v-if="assessment.status === 'COMPLETED'" class="flex gap-3">
             <button
               type="button"
-              :disabled="isMarkingAbsent || isFormReadOnly"
+              :disabled="isMarkingAbsent || isFormReadOnly || assessment.status === 'COMPLETED'"
               class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 text-neutral-600 rounded px-4 py-2 hover:bg-neutral-50 disabled:opacity-50"
               @click="markAbsent"
             >
@@ -434,7 +362,7 @@
             </button>
             <button
               type="button"
-              :disabled="isSaving || isFormReadOnly"
+              :disabled="isSaving || isFormReadOnly || assessment.status === 'COMPLETED'"
               class="text-xs font-semibold uppercase tracking-wider border border-neutral-300 text-neutral-700 rounded px-4 py-2 hover:bg-neutral-50 disabled:opacity-50"
               @click="saveDraft"
             >
@@ -566,7 +494,13 @@ interface Assessment {
   score?: {
     opiLevelId: number;
     notes?: string;
+    updatedAt?: string;
     opiLevel?: { description: string };
+    updater?: {
+      id: number;
+      firstName: string;
+      lastName: string;
+    };
   };
   criteriaResults?: AssessmentCriteriaResult[];
   classContext?: {
@@ -601,8 +535,8 @@ const returnTo = computed(() => {
   const value = route.query.returnTo;
   return typeof value === 'string' && value.length > 0 ? value : null;
 });
-const isAdminView = computed(() => sourceView.value === 'admin-verification');
-const isCoordinatorVerificationView = computed(() => sourceView.value === 'coordinator-verification');
+const isAdminView = computed(() => sourceView.value === 'admin-verification' && authStore.isAdmin);
+const isCoordinatorVerificationView = computed(() => sourceView.value === 'coordinator-verification' && authStore.isCoordinator);
 
 // Computed
 const backUrl = computed(() => {
@@ -676,6 +610,7 @@ const canCompleteReason = computed(() => {
 const showReEvaluateForm = ref(false);
 const isReEvaluating = ref(false);
 const reEvalError = ref<string | null>(null);
+const reEvalSuccess = ref<string | null>(null);
 const reEvalForm = ref({
   opiLevelId: null as number | null,
   reason: '',
@@ -685,8 +620,10 @@ const reEvalForm = ref({
 });
 
 // Unified active-form computed properties — in admin view these point to reEvalForm, otherwise form
+const isReEvalMode = computed(() => assessment.value?.status === 'COMPLETED');
+
 const activeOpiLevelId = computed(() =>
-  isAdminView.value ? reEvalForm.value.opiLevelId : form.value.opiLevelId,
+  isReEvalMode.value ? reEvalForm.value.opiLevelId : form.value.opiLevelId,
 );
 
 const activeLevelCriteria = computed(() => {
@@ -696,13 +633,13 @@ const activeLevelCriteria = computed(() => {
 });
 
 const activeCriteriaIds = computed(() =>
-  isAdminView.value ? reEvalForm.value.criteriaIds : form.value.criteriaIds,
+  isReEvalMode.value ? reEvalForm.value.criteriaIds : form.value.criteriaIds,
 );
 
 const activeNotes = computed({
-  get: () => (isAdminView.value ? reEvalForm.value.notes : form.value.notes),
+  get: () => (isReEvalMode.value ? reEvalForm.value.notes : form.value.notes),
   set: (v: string) => {
-    if (isAdminView.value) {
+    if (isReEvalMode.value) {
       reEvalForm.value.notes = v;
     } else {
       form.value.notes = v;
@@ -712,7 +649,7 @@ const activeNotes = computed({
 
 function setActiveOpiLevel(levelId: number) {
   if (isFormReadOnly.value) return;
-  if (isAdminView.value) {
+  if (isReEvalMode.value) {
     reEvalForm.value.opiLevelId = levelId;
   } else {
     form.value.opiLevelId = levelId;
@@ -721,7 +658,7 @@ function setActiveOpiLevel(levelId: number) {
 
 function toggleActiveCriteria(criteriaId: number) {
   if (isFormReadOnly.value) return;
-  if (isAdminView.value) {
+  if (isReEvalMode.value) {
     toggleCriteria('reeval', criteriaId);
   } else {
     toggleCriteria('form', criteriaId);
@@ -732,6 +669,16 @@ function formatDateShort(dateStr?: string): string {
   if (!dateStr) return '-';
   return new Date(dateStr).toISOString().split('T')[0];
 }
+
+function formatDateTime(dateStr?: string): string {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString();
+}
+
+const hasBeenReEvaluated = computed(() => {
+  if (!assessment.value?.completedAt || !assessment.value?.lastModifiedAt) return false;
+  return new Date(assessment.value.lastModifiedAt) > new Date(assessment.value.completedAt);
+});
 
 const selectedLevelCriteria = computed(() => {
   if (!form.value.opiLevelId) {
@@ -751,9 +698,7 @@ const selectedReEvalLevelCriteria = computed(() => {
   return selectedLevel?.criteria ?? [];
 });
 
-const canReEvaluate = computed(() => {
-  return authStore.isAdmin || authStore.isCoordinator;
-});
+const canReEvaluate = computed(() => true);
 
 const canSubmitReEval = computed(() => {
   return reEvalForm.value.opiLevelId !== null && 
@@ -788,8 +733,18 @@ async function submitReEvaluation() {
     assessment.value = await res.json();
     syncFormWithAssessment();
     historyRefreshKey.value += 1;
-    showReEvaluateForm.value = false;
-    reEvalForm.value = { opiLevelId: null, reason: '', notes: '', criteriaIds: [], flagForReview: false };
+    // Re-initialize form with the freshly saved data so the UI reflects the update
+    reEvalForm.value = {
+      opiLevelId: form.value.opiLevelId,
+      reason: '',
+      notes: form.value.notes,
+      criteriaIds: [...form.value.criteriaIds],
+      flagForReview: false,
+    };
+    reEvalSuccess.value = 'Re-evaluation saved successfully.';
+    setTimeout(() => {
+      reEvalSuccess.value = null;
+    }, 4000);
   } catch (e) {
     reEvalError.value = e instanceof Error ? e.message : 'An error occurred';
   } finally {
@@ -839,6 +794,7 @@ function syncFormWithAssessment() {
 function toggleReEvaluateForm() {
   showReEvaluateForm.value = !showReEvaluateForm.value;
   reEvalError.value = null;
+  reEvalSuccess.value = null;
 
   if (!showReEvaluateForm.value) {
     return;
@@ -892,10 +848,6 @@ async function getAuthHeaders(includeContentType = true): Promise<Record<string,
   return headers;
 }
 
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleString();
-}
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
@@ -1130,8 +1082,8 @@ async function fetchAssessment() {
 
     syncFormWithAssessment();
 
-    // Auto-open re-eval form for admin viewing a completed assessment
-    if (isAdminView.value && assessment.value?.status === 'COMPLETED' && canReEvaluate.value) {
+    // Initialize reEvalForm for any completed assessment so re-evaluation fields are pre-populated
+    if (assessment.value?.status === 'COMPLETED') {
       toggleReEvaluateForm();
     }
 

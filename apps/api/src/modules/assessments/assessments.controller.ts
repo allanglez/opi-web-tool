@@ -7,6 +7,7 @@ import {
     Param,
     ParseIntPipe,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AssessmentsService } from './assessments.service';
 import {
     StartAssessmentDto,
@@ -17,12 +18,15 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+@ApiTags('Assessments')
+@ApiBearerAuth('access-token')
 @Controller('assessments')
 export class AssessmentsController {
     constructor(private readonly assessmentsService: AssessmentsService) { }
 
     @Post('start')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Start a new OPI assessment for a student' })
     async startAssessment(
         @Body() dto: StartAssessmentDto,
         @CurrentUser() user: { id: number },
@@ -32,6 +36,7 @@ export class AssessmentsController {
 
     @Get(':id')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Get full assessment details including scores and audio' })
     async getAssessment(
         @Param('id', ParseIntPipe) id: number,
         @CurrentUser() user: { id: number },
@@ -41,6 +46,7 @@ export class AssessmentsController {
 
     @Patch(':id')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Update an in-progress assessment with partial scores or notes' })
     async updateAssessment(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: UpdateAssessmentDto,
@@ -51,6 +57,7 @@ export class AssessmentsController {
 
     @Post(':id/complete')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Mark an assessment as completed with final scores' })
     async completeAssessment(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: CompleteAssessmentDto,
@@ -61,6 +68,7 @@ export class AssessmentsController {
 
     @Post(':id/reopen')
     @Roles('COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Reopen a completed assessment for corrections (coordinator/admin only)' })
     async reopenAssessment(
         @Param('id', ParseIntPipe) id: number,
         @CurrentUser() user: { id: number },
@@ -70,6 +78,7 @@ export class AssessmentsController {
 
     @Post(':id/mark-absent')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Mark a student as absent for their assessment' })
     async markAbsent(
         @Param('id', ParseIntPipe) id: number,
         @CurrentUser() user: { id: number },
@@ -79,12 +88,14 @@ export class AssessmentsController {
 
     @Get('opi-levels')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Get all available OPI proficiency levels for scoring' })
     async getOpiLevels() {
         return this.assessmentsService.getOpiLevels();
     }
 
     @Post('classes/:classId/submit')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Submit all assessments for a class as finalized' })
     async submitClass(
         @Param('classId', ParseIntPipe) classId: number,
         @Body() submitData: { submittedBy: number; notes?: string },
@@ -95,6 +106,7 @@ export class AssessmentsController {
 
     @Post(':id/validate-submission')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Check if an assessment meets all submission requirements' })
     async validateSubmission(
         @Param('id', ParseIntPipe) id: number,
         @CurrentUser() _user: { id: number },
@@ -104,6 +116,7 @@ export class AssessmentsController {
 
     @Post(':id/flag-review')
     @Roles('COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Flag an assessment for coordinator review with a reason' })
     async flagForReview(
         @Param('id', ParseIntPipe) id: number,
         @Body() data: { reason: string },
@@ -113,7 +126,8 @@ export class AssessmentsController {
     }
 
     @Patch(':id/re-evaluate')
-    @Roles('COORDINATOR', 'ADMIN')
+    @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Re-evaluate a completed assessment with new scores' })
     async reEvaluateAssessment(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: ReEvaluateDto,

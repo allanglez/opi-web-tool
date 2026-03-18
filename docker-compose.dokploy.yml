@@ -74,6 +74,9 @@ services:
       AUTH0_ISSUER: ${AUTH0_ISSUER}
       AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
 
+      # Swagger
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+
       # Audio settings
       MAX_AUDIO_MB: ${MAX_AUDIO_MB:-50}
       AUDIO_STORAGE_PROVIDER: ${AUDIO_STORAGE_PROVIDER:-minio}

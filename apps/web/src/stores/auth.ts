@@ -21,6 +21,7 @@ export interface User {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const isAuthenticated = ref(false);
+  const lastFetchedAt = ref<number | null>(null);
 
   const isLoading = ref(false);
   const error = ref<string | null>(null);
@@ -41,6 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
   const clearSession = () => {
     user.value = null;
     isAuthenticated.value = false;
+    lastFetchedAt.value = null;
     error.value = null;
     token.value = null;
   };
@@ -98,6 +100,7 @@ export const useAuthStore = defineStore('auth', () => {
       const data = await response.json();
       user.value = data;
       isAuthenticated.value = true;
+      lastFetchedAt.value = Date.now();
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Unknown error';
       user.value = null;
@@ -144,6 +147,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     isAuthenticated,
+    lastFetchedAt,
     isLoading,
     error,
     isAdmin,

@@ -1,7 +1,9 @@
 <template>
   <AppShell :user="currentUser">
+    <AdminSubNav />
+
     <!-- Page Title -->
-    <div class="mb-8">
+    <div class="mt-8 mb-8">
       <h1 class="text-3xl font-bold text-neutral-900 mb-2">Reports &amp; Export</h1>
       <p class="text-neutral-600">Export assessment data for reporting and integration with external systems.</p>
     </div>
@@ -58,8 +60,8 @@
 
       <!-- Export Options -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <!-- M2M / PnA Export -->
-        <BaseCard>
+        <!-- M2M / PnA Export — admin only -->
+        <BaseCard v-if="authStore.isAdmin">
           <div class="flex items-start gap-4">
             <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <Download class="w-5 h-5 text-blue-600" />
@@ -177,6 +179,7 @@ import { ref, computed, onMounted } from 'vue';
 import { ChartColumn, Download, FileText } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/auth';
 import AppShell from '../../components/layout/AppShell.vue';
+import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';

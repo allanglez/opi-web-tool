@@ -52,7 +52,7 @@ const router = createRouter({
       path: '/admin/dashboard',
       name: 'admin-dashboard',
       component: () => import('../pages/admin/AdminDashboardPage.vue'),
-      meta: { roles: ['ADMIN', 'COORDINATOR'] },
+      meta: { roles: ['ADMIN'] },
     },
     {
       path: '/admin/cycle',
@@ -143,7 +143,7 @@ const router = createRouter({
       path: '/coordinator/dashboard',
       name: 'coordinator-dashboard',
       component: () => import('../pages/coordinator/CoordinatorDashboardPage.vue'),
-      meta: { roles: ['COORDINATOR', 'ADMIN'] },
+      meta: { roles: ['COORDINATOR'] },
     },
     {
       path: '/coordinator/assignments',
@@ -186,7 +186,7 @@ const router = createRouter({
       path: '/evaluator/dashboard',
       name: 'evaluator-dashboard',
       component: () => import('../pages/evaluator/EvaluatorDashboardPage.vue'),
-      meta: { roles: ['EVALUATOR', 'COORDINATOR', 'ADMIN'] },
+      meta: { roles: ['EVALUATOR'] },
     },
     {
       path: '/evaluator/assignments',

@@ -13,8 +13,10 @@ export const authGuard = async (
     return next();
   }
 
-  // If not authenticated, try to fetch user profile
-  if (!authStore.isAuthenticated) {
+  // Fetch user profile if not authenticated or if roles may be stale (older than 5 minutes)
+  const FIVE_MINUTES = 5 * 60 * 1000;
+  const isStale = !authStore.lastFetchedAt || Date.now() - authStore.lastFetchedAt > FIVE_MINUTES;
+  if (!authStore.isAuthenticated || isStale) {
     try {
       await authStore.fetchMe();
     } catch (error) {
@@ -27,11 +29,12 @@ export const authGuard = async (
   const requiredRoles = to.meta.roles as string[] | undefined;
   if (requiredRoles && requiredRoles.length > 0) {
     if (!authStore.hasAnyRole(requiredRoles)) {
-      const fallbackRoute = authStore.getDefaultRoute();
-      if (fallbackRoute && fallbackRoute !== '/forbidden' && fallbackRoute !== to.fullPath) {
-        return next(fallbackRoute);
+      const homeRoute = authStore.getDefaultRoute();
+      // Redirect to the user's home dashboard; only show forbidden if they have no recognized role
+      if (homeRoute === '/forbidden') {
+        return next({ name: 'forbidden' });
       }
-      return next({ name: 'forbidden' });
+      return next(homeRoute);
     }
   }
 

@@ -7,15 +7,19 @@ import {
   Res,
   Req,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AudioService } from './audio.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+@ApiTags('Audio')
+@ApiBearerAuth('access-token')
 @Controller('assessments/:assessmentId/audio')
 export class AudioController {
   constructor(private readonly audioService: AudioService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Upload an audio recording for an assessment' })
   async uploadAudio(
     @Param('assessmentId') assessmentId: string,
     @CurrentUser() user: { id: number; roles?: string[] },
@@ -44,6 +48,7 @@ export class AudioController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List all audio recordings attached to an assessment' })
   async getAudioRecordings(
     @Param('assessmentId') assessmentId: string,
     @CurrentUser() user: { id: number; roles?: string[] },
@@ -56,6 +61,7 @@ export class AudioController {
   }
 
   @Get(':storageKey/download')
+  @ApiOperation({ summary: 'Download a specific audio recording file' })
   async downloadAudio(
     @Param('assessmentId') assessmentId: string,
     @Param('storageKey') storageKey: string,

@@ -294,6 +294,13 @@ export class AssessmentsService {
                 score: {
                     include: {
                         opiLevel: true,
+                        updater: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                            },
+                        },
                     },
                 },
                 notes: {
@@ -1076,6 +1083,13 @@ export class AssessmentsService {
                     score: {
                         include: {
                             opiLevel: true,
+                            updater: {
+                                select: {
+                                    id: true,
+                                    firstName: true,
+                                    lastName: true,
+                                },
+                            },
                         },
                     },
                     criteriaResults: {

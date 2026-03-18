@@ -108,12 +108,6 @@ services:
     depends_on:
       api:
         condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8080"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     ports:
       - "8080:8080"
 

@@ -149,10 +149,7 @@ import EditDatesModal from '../../components/coordinator/EditDatesModal.vue';
 import BulkDateAssignmentModal from '../../components/coordinator/BulkDateAssignmentModal.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
-import { useToast } from '../../composables/useToast';
-
 const authStore = useAuthStore();
-const toast = useToast();
 
 interface SchoolDate {
   id: number;

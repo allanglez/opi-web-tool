@@ -18,6 +18,15 @@ export type AuditAction =
     | 'SCORE_CHANGE'
     | 'REVIEW_RESOLVED';
 
+export type ManualEditAction =
+    | 'STUDENT_EDIT'
+    | 'STUDENT_SCHOOL_REASSIGNMENT'
+    | 'STUDENT_CLASS_ENROLLMENT_ADD'
+    | 'STUDENT_CLASS_ENROLLMENT_REMOVE'
+    | 'CLASS_EDIT';
+
+export type ManualEditEntityType = 'STUDENT' | 'CLASS';
+
 export interface AuditLogFilter {
     assessmentId?: number;
     action?: AuditAction | AuditAction[];
@@ -196,5 +205,87 @@ export class AuditService {
             orderBy: { action: 'asc' },
         });
         return results.map((r) => r.action);
+    }
+
+    /**
+     * Log a manual edit action to the manual_edit_audit_log table.
+     */
+    async logManualEdit(
+        entityType: ManualEditEntityType,
+        entityId: number,
+        action: ManualEditAction,
+        userId: number,
+        fieldName?: string,
+        oldValue?: string,
+        newValue?: string,
+        client?: Prisma.TransactionClient,
+    ) {
+        const prismaClient = client ?? this.prisma;
+
+        return prismaClient.manualEditAuditLog.create({
+            data: {
+                entityType,
+                entityId,
+                action,
+                fieldName: fieldName ?? null,
+                oldValue: oldValue ?? null,
+                newValue: newValue ?? null,
+                changedBy: userId,
+            },
+        });
+    }
+
+    /**
+     * Log multiple manual edit entries (e.g. student field changes + school reassignment).
+     */
+    async logMultipleManualEdits(
+        entries: Array<{
+            entityType: ManualEditEntityType;
+            entityId: number;
+            action: ManualEditAction;
+            userId: number;
+            fieldName?: string;
+            oldValue?: string;
+            newValue?: string;
+        }>,
+        client?: Prisma.TransactionClient,
+    ) {
+        const prismaClient = client ?? this.prisma;
+
+        return Promise.all(
+            entries.map((entry) =>
+                prismaClient.manualEditAuditLog.create({
+                    data: {
+                        entityType: entry.entityType,
+                        entityId: entry.entityId,
+                        action: entry.action,
+                        fieldName: entry.fieldName ?? null,
+                        oldValue: entry.oldValue ?? null,
+                        newValue: entry.newValue ?? null,
+                        changedBy: entry.userId,
+                    },
+                }),
+            ),
+        );
+    }
+
+    /**
+     * Get manual edit audit logs for a specific entity.
+     */
+    async getManualEditLogs(entityType: ManualEditEntityType, entityId: number) {
+        return this.prisma.manualEditAuditLog.findMany({
+            where: { entityType, entityId },
+            include: {
+                changer: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
+            },
+            orderBy: { changedAt: 'desc' },
+        });
     }
 }

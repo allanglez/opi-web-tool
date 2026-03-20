@@ -250,6 +250,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { useToast } from '../../composables/useToast';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
@@ -264,6 +265,7 @@ import type { DataTableColumn } from '../../components/ui/data-table/types';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const toast = useToast();
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const currentUser = computed(() => authStore.user ? {
@@ -488,7 +490,7 @@ async function handleStudentAction(student: ClassStudent, _cls: ClassDetail) {
 
     if (!res.ok) {
       const err = await res.json();
-      alert(err.message || 'Failed to start assessment');
+      toast.error(err.message || 'Failed to start assessment');
       return;
     }
 
@@ -498,7 +500,7 @@ async function handleStudentAction(student: ClassStudent, _cls: ClassDetail) {
       query: { from: 'evaluator-class-view', returnTo: route.fullPath },
     });
   } catch (e) {
-    alert(e instanceof Error ? e.message : 'Failed to start assessment');
+    toast.error(e instanceof Error ? e.message : 'Failed to start assessment');
   }
 }
 

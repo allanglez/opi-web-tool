@@ -153,12 +153,20 @@
         <template #cell-actions="{ row }">
           <button
             v-if="asRow(row).id"
-            class="px-3 py-1 text-xs font-semibold text-white bg-neutral-900 border border-neutral-900 rounded hover:bg-neutral-800 transition-colors"
+            class="px-3 py-1 text-xs font-semibold text-white bg-[#0f3f52] border border-[#0f3f52] rounded hover:bg-[#0c3444]transition-colors"
             @click="viewAssessment(asRow(row).id!)"
           >
             View
           </button>
-          <span v-else class="text-xs text-neutral-400">Not started</span>
+          <button
+            v-else-if="asRow(row).studentId"
+            :disabled="startingStudentId === asRow(row).studentId"
+            class="px-3 py-1 text-xs font-semibold text-white bg-[#0f3f52] border border-[#0f3f52] rounded hover:bg-[#0c3444] disabled:bg-neutral-300 disabled:border-neutral-300 transition-colors"
+            @click="startAssessment(asRow(row))"
+          >
+            {{ startingStudentId === asRow(row).studentId ? 'Starting...' : 'Start' }}
+          </button>
+          <span v-else class="text-xs text-neutral-400">No student</span>
         </template>
       </AppDataTable>
     </BaseCard>
@@ -179,9 +187,11 @@ import ErrorState from '../../components/ui/ErrorState.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import AppAutocomplete from '../../components/ui/AppAutocomplete.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
+import { useToast } from '../../composables/useToast';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const toast = useToast();
 
 const currentUser = computed(() => authStore.user ? {
   firstName: authStore.user.firstName,
@@ -222,6 +232,8 @@ interface VerificationResponse {
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+const startingStudentId = ref<number | null>(null);
+const cycleId = ref<number | null>(null);
 const assessments = ref<AssessmentRow[]>([]);
 const stats = ref({ total: 0, completed: 0, inProgress: 0, notStarted: 0 });
 const filterOptions = ref<VerificationResponse['filterOptions']>({
@@ -321,6 +333,27 @@ function viewAssessment(id: number) {
   router.push({ path: `/evaluator/assessments/${id}`, query: { from: 'admin-verification' } });
 }
 
+async function startAssessment(row: AssessmentRow) {
+  if (!row.studentId || !cycleId.value) return;
+
+  startingStudentId.value = row.studentId;
+  try {
+    const assessment = await api.post<{ id: number }>('/assessments/start', {
+      studentId: row.studentId,
+      cycleId: cycleId.value,
+    });
+    router.push({
+      path: `/evaluator/assessments/${assessment.id}`,
+      query: { from: 'admin-verification' },
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to start assessment';
+    toast.error(message);
+  } finally {
+    startingStudentId.value = null;
+  }
+}
+
 async function fetchData() {
   isLoading.value = true;
   error.value = null;
@@ -348,5 +381,13 @@ function applyFilters() {
   fetchData();
 }
 
-onMounted(fetchData);
+onMounted(async () => {
+  try {
+    const cycle = await api.get<{ id: number }>('/cycles/active');
+    cycleId.value = cycle?.id ?? null;
+  } catch {
+    // No active cycle
+  }
+  fetchData();
+});
 </script>

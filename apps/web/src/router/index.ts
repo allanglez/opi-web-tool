@@ -13,6 +13,8 @@ const router = createRouter({
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated) {
           next({ name: 'login' });
+        } else if (authStore.isPending || authStore.isInactive) {
+          next({ name: 'account-inactive' });
         } else if (authStore.isAdmin) {
           next({ name: 'admin-dashboard' });
         } else if (authStore.isCoordinator) {
@@ -40,6 +42,12 @@ const router = createRouter({
       path: '/forbidden',
       name: 'forbidden',
       component: () => import('../pages/ForbiddenPage.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/account-inactive',
+      name: 'account-inactive',
+      component: () => import('../pages/auth/AccountInactivePage.vue'),
       meta: { public: true },
     },
     {
@@ -126,6 +134,12 @@ const router = createRouter({
     //   component: () => import('../pages/admin/ReportsExportPage.vue'),
     //   meta: { roles: ['ADMIN'] },
     // },
+    {
+      path: '/admin/students',
+      name: 'admin-students',
+      component: () => import('../pages/admin/StudentManagementPage.vue'),
+      meta: { roles: ['ADMIN'] },
+    },
     {
       path: '/admin/retention',
       name: 'admin-retention',

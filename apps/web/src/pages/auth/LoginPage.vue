@@ -107,8 +107,10 @@ import { loginWithAuth0Redirect } from '../../auth/auth0';
 import { isAuth0Mode, isMockAuthMode } from '../../auth/mode';
 import AppHeader from '../../components/layout/AppHeader.vue';
 import AppFooter from '../../components/layout/AppFooter.vue';
+import { useToast } from '../../composables/useToast';
 
 const router = useRouter();
+const toast = useToast();
 const route = useRoute();
 const authStore = useAuthStore();
 const emailAddress = ref('');
@@ -119,11 +121,15 @@ const isAuth0AuthMode = isAuth0Mode;
 const mockLogin = async (role: 'ADMIN' | 'COORDINATOR' | 'EVALUATOR') => {
   try {
     await authStore.fetchMe(undefined, role);
+    if (authStore.isPending || authStore.isInactive) {
+      router.push({ name: 'account-inactive' });
+      return;
+    }
     const redirect = (route.query.redirect as string) || authStore.getDefaultRoute();
     router.push(redirect);
   } catch (error) {
     console.error('Mock login error:', error);
-    alert('Login failed. Please try again.');
+    toast.error('Login failed. Please try again.');
   }
 };
 
@@ -153,7 +159,7 @@ const loginWithAuth0 = async () => {
     );
   } catch (error) {
     console.error('Auth0 login error:', error);
-    alert('Unable to start login. Please try again.');
+    toast.error('Unable to start login. Please try again.');
   }
 };
 

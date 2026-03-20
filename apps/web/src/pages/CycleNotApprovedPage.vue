@@ -37,9 +37,11 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import AppShell from '../components/layout/AppShell.vue';
+import { useToast } from '../composables/useToast';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const toast = useToast();
 
 const currentUser = computed(() => authStore.user ? {
   firstName: authStore.user.firstName,
@@ -62,14 +64,14 @@ const checkApprovalStatus = async () => {
       if (cycle.isApproved) {
         router.push('/admin/dashboard');
       } else {
-        alert('Cycle is still not approved. Please check back later.');
+        toast.error('Cycle is still not approved. Please check back later.');
       }
     } else {
-      alert('No active cycle found. Please contact an administrator.');
+      toast.error('No active cycle found. Please contact an administrator.');
     }
   } catch (err) {
     console.error('Failed to check approval status:', err);
-    alert('Failed to check approval status. Please try again.');
+    toast.error('Failed to check approval status. Please try again.');
   } finally {
     isChecking.value = false;
   }

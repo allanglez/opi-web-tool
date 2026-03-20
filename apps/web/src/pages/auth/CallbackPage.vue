@@ -31,6 +31,10 @@ watchEffect(async () => {
       
       try {
         await authStore.fetchMe();
+        if (authStore.isPending || authStore.isInactive) {
+          router.replace({ name: 'account-inactive' });
+          return;
+        }
         router.replace(redirect || authStore.getDefaultRoute());
       } catch (error) {
         console.error('Fetch profile error:', error);

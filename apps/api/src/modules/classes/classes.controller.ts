@@ -2,6 +2,7 @@ import { Controller, Get, Patch, Param, Body, Query, ParseIntPipe } from '@nestj
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ClassesService } from './classes.service';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { UpdateClassDto } from './dto/update-class.dto';
 
 @ApiTags('Classes')
@@ -27,11 +28,26 @@ export class ClassesController {
 
   @Patch('admin/classes/:id')
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Update class properties such as inclusion status and grade' })
+  @ApiOperation({ summary: 'Update class properties such as inclusion status, teacher, grade, program' })
   async updateClass(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateClassDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.classesService.updateClass(id, dto);
+    return this.classesService.updateClass(id, dto, user.id);
+  }
+
+  @Get('admin/teachers')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'List all teachers for autocomplete selection' })
+  async getTeachers() {
+    return this.classesService.getTeachers();
+  }
+
+  @Get('admin/classes/:id/edit-history')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Get manual edit audit history for a class' })
+  async getClassEditHistory(@Param('id', ParseIntPipe) id: number) {
+    return this.classesService.getClassEditHistory(id);
   }
 }

@@ -62,8 +62,18 @@
               :initial-page-size="10"
             >
               <template #cell-student="{ row }">
-                <div class="text-sm font-medium text-neutral-900">
-                  {{ asStudent(row).lastName }}, {{ asStudent(row).firstName }}
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-neutral-900">
+                    {{ asStudent(row).lastName }}, {{ asStudent(row).firstName }}
+                  </span>
+                  <span
+                    v-if="asStudent(row).isManuallyEdited"
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800"
+                    title="This student record was manually edited"
+                  >
+                    <Pencil class="w-3 h-3 mr-1" />
+                    Manually Edited
+                  </span>
                 </div>
               </template>
 
@@ -118,9 +128,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { ChevronLeft, Lock } from 'lucide-vue-next';
+import { ChevronLeft, Lock, Pencil } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { useToast } from '../../composables/useToast';
 import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
@@ -134,6 +145,7 @@ import type { DataTableColumn } from '../../components/ui/data-table/types';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const toast = useToast();
 
 // User info
 const currentUser = computed(() => authStore.user ? {
@@ -185,6 +197,7 @@ interface StudentWithAssessment {
   firstName: string;
   lastName: string;
   grade?: string;
+  isManuallyEdited?: boolean;
   assessment: {
     id: number | null;
     status: string;
@@ -334,11 +347,11 @@ async function startAssessment(student: StudentWithAssessment) {
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to start assessment';
     if (message.includes('ASSESSMENT_LOCKED')) {
-      alert('This student is currently being assessed by another evaluator.');
+      toast.error('This student is currently being assessed by another evaluator.');
       await fetchStudents();
       return;
     }
-    alert(message);
+    toast.error(message);
   } finally {
     startingId.value = null;
   }

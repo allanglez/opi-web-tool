@@ -1,6 +1,8 @@
 <template>
   <AppShell :user="currentUser">
-    <div class="mb-8">
+    <AdminSubNav />
+
+    <div class="mb-8 mt-4">
       <h1 class="text-3xl font-bold text-neutral-900 mb-2">Class Inclusion Management</h1>
       <p class="text-neutral-600">Control which classes are included in the assessment cycle.</p>
     </div>
@@ -12,7 +14,7 @@
           <label class="block text-sm font-medium text-neutral-700 mb-1">Cycle</label>
           <select
             v-model="filters.cycleId"
-            class="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             @change="fetchClasses"
           >
             <option value="">All Cycles</option>
@@ -23,7 +25,7 @@
           <label class="block text-sm font-medium text-neutral-700 mb-1">School</label>
           <select
             v-model="filters.schoolId"
-            class="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             @change="fetchClasses"
           >
             <option value="">All Schools</option>
@@ -33,7 +35,7 @@
           <label class="block text-sm font-medium text-neutral-700 mb-1">Program</label>
           <select
             v-model="filters.programId"
-            class="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             @change="fetchClasses"
           >
             <option value="">All Programs</option>
@@ -49,7 +51,7 @@
         </h2>
         <button
           :disabled="isLoading"
-          class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-neutral-300 transition-colors"
+          class="px-4 py-2 text-sm bg-[#0f3f52] text-white hover:bg-[#0c3444] disabled:bg-neutral-300 transition-colors"
           @click="fetchClasses"
         >
           {{ isLoading ? 'Refreshing...' : 'Refresh' }}
@@ -77,7 +79,17 @@
           </template>
 
           <template #cell-classCode="{ row }">
-            <span class="text-sm font-medium text-neutral-900">{{ asClassItem(row).classCode }}</span>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-neutral-900">{{ asClassItem(row).classCode }}</span>
+              <span
+                v-if="asClassItem(row).isManuallyEdited"
+                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800"
+                title="This class was manually edited"
+              >
+                <Pencil class="w-3 h-3 mr-1" />
+                Manually Edited
+              </span>
+            </div>
           </template>
 
           <template #cell-program="{ row }">
@@ -89,7 +101,7 @@
           </template>
 
           <template #cell-teacher="{ row }">
-            <span class="text-sm text-neutral-600">{{ asClassItem(row).teacher || 'N/A' }}</span>
+            <span class="text-sm text-neutral-600">{{ asClassItem(row).teacher?.name || 'N/A' }}</span>
           </template>
 
           <template #cell-students="{ row }">
@@ -109,6 +121,14 @@
               />
             </button>
           </template>
+          <template #cell-actions="{ row }">
+            <button
+              class="px-3 py-1 text-sm bg-[#0f3f52] text-white hover:bg-[#0c3444]"
+              @click="openEditDialog(asClassItem(row))"
+            >
+              Edit
+            </button>
+          </template>
         </AppDataTable>
       </div>
     </BaseCard>
@@ -118,15 +138,27 @@
         <div class="text-red-600">{{ error }}</div>
       </BaseCard>
     </div>
+
+    <!-- Class Edit Dialog -->
+    <ClassEditDialog
+      :visible="editDialogVisible"
+      :class-item="selectedClass"
+      :programs="programs"
+      @close="editDialogVisible = false"
+      @saved="onClassSaved"
+    />
   </AppShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { Pencil } from 'lucide-vue-next';
 import { useAuthStore } from '../../../stores/auth';
 import AppShell from '../../../components/layout/AppShell.vue';
+import AdminSubNav from '../../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../../components/ui/BaseCard.vue';
 import AppDataTable from '../../../components/ui/data-table/AppDataTable.vue';
+import ClassEditDialog from '../../../components/admin/ClassEditDialog.vue';
 import type { DataTableColumn } from '../../../components/ui/data-table/types';
 
 const authStore = useAuthStore();
@@ -141,8 +173,9 @@ interface Class {
   id: number;
   classCode: string;
   grade?: number;
-  teacher?: string;
+  teacher?: { id: number; teacherId: string; name: string } | null;
   isIncluded: boolean;
+  isManuallyEdited: boolean;
   school: {
     id: number;
     schoolCode: string;
@@ -151,7 +184,7 @@ interface Class {
   program?: {
     id: number;
     name: string;
-  };
+  } | null;
   cycle: {
     id: number;
     name: string;
@@ -159,6 +192,11 @@ interface Class {
   _count: {
     classStudents: number;
   };
+}
+
+interface Program {
+  id: number;
+  name: string;
 }
 
 interface Cycle {
@@ -171,6 +209,9 @@ const activeCycle = ref<Cycle | null>(null);
 const updatingClassIds = ref(new Set<number>());
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+const editDialogVisible = ref(false);
+const selectedClass = ref<Class | null>(null);
+const programs = ref<Program[]>([]);
 
 const classColumns: DataTableColumn<Class>[] = [
   {
@@ -206,7 +247,7 @@ const classColumns: DataTableColumn<Class>[] = [
     header: 'Teacher',
     sortable: true,
     searchable: true,
-    value: (row) => row.teacher || 'N/A',
+    value: (row) => row.teacher?.name || 'N/A',
   },
   {
     key: 'students',
@@ -221,6 +262,13 @@ const classColumns: DataTableColumn<Class>[] = [
     sortable: true,
     searchable: true,
     value: (row) => (row.isIncluded ? 'Included' : 'Excluded'),
+  },
+  {
+    key: 'actions',
+    header: '',
+    sortable: false,
+    searchable: false,
+    value: () => '',
   },
 ];
 
@@ -303,8 +351,35 @@ const toggleInclusion = async (classItem: Class) => {
   }
 };
 
+function openEditDialog(classItem: Class) {
+  selectedClass.value = classItem;
+  editDialogVisible.value = true;
+}
+
+async function onClassSaved() {
+  editDialogVisible.value = false;
+  selectedClass.value = null;
+  await fetchClasses();
+}
+
+async function fetchPrograms() {
+  try {
+    // Extract unique programs from loaded classes
+    const programMap = new Map<number, Program>();
+    for (const cls of classes.value) {
+      if (cls.program) {
+        programMap.set(cls.program.id, cls.program);
+      }
+    }
+    programs.value = Array.from(programMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    programs.value = [];
+  }
+}
+
 onMounted(async () => {
   await fetchActiveCycle();
   await fetchClasses();
+  fetchPrograms();
 });
 </script>

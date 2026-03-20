@@ -78,6 +78,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { api } from '../../utils/api';
+import { useToast } from '../../composables/useToast';
 
 interface SchoolDate {
   id: number;
@@ -107,6 +108,7 @@ const emit = defineEmits<{
   saved: [];
 }>();
 
+const toast = useToast();
 const localDates = ref<LocalDate[]>([]);
 const isSaving = ref(false);
 let nextTempId = 1;
@@ -160,7 +162,7 @@ async function saveDates() {
 
     emit('saved');
   } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to save dates');
+    toast.error(err instanceof Error ? err.message : 'Failed to save dates');
   } finally {
     isSaving.value = false;
   }

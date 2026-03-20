@@ -1,10 +1,12 @@
 <template>
   <div id="app">
     <router-view />
+    <AppToast />
   </div>
 </template>
 
 <script setup lang="ts">
+import AppToast from './components/ui/AppToast.vue';
 </script>
 
 <style>

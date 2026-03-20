@@ -417,6 +417,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { Mic, Upload, ArrowLeft, AlertTriangle } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { useToast } from '../../composables/useToast';
 import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
@@ -427,6 +428,7 @@ import AudioRecorder from '../../components/audio/AudioRecorder.vue';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const toast = useToast();
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 // User info
@@ -1134,7 +1136,7 @@ async function saveDraft() {
     syncFormWithAssessment();
     historyRefreshKey.value += 1;
   } catch (e) {
-    alert(e instanceof Error ? e.message : 'Failed to save draft');
+    toast.error(e instanceof Error ? e.message : 'Failed to save draft');
   } finally {
     isSaving.value = false;
   }
@@ -1182,7 +1184,7 @@ async function markAbsent() {
       navigateBack();
     }, 1500);
   } catch (e) {
-    alert(e instanceof Error ? e.message : 'Failed to mark absent');
+    toast.error(e instanceof Error ? e.message : 'Failed to mark absent');
   } finally {
     isMarkingAbsent.value = false;
   }
@@ -1235,7 +1237,7 @@ async function handleSubmit() {
       navigateBack();
     }, 1500);
   } catch (e) {
-    alert(e instanceof Error ? e.message : 'Failed to complete assessment');
+    toast.error(e instanceof Error ? e.message : 'Failed to complete assessment');
   } finally {
     isCompleting.value = false;
   }

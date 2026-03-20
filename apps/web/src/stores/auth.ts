@@ -38,6 +38,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => hasRole('ADMIN'));
   const isCoordinator = computed(() => hasRole('COORDINATOR'));
   const isEvaluator = computed(() => hasRole('EVALUATOR'));
+  const isPending = computed(() => hasRole('PENDING'));
+  const isInactive = computed(() => user.value?.isActive === false);
 
   const clearSession = () => {
     user.value = null;
@@ -153,6 +155,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isCoordinator,
     isEvaluator,
+    isPending,
+    isInactive,
     hasRole,
     hasAnyRole,
     getDefaultRoute,

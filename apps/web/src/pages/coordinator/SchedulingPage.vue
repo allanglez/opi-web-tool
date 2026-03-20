@@ -132,55 +132,12 @@
       />
 
       <!-- Bulk Date Assignment Modal -->
-      <div v-if="showBulkModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="bg-white border-2 border-neutral-300 shadow-lg w-full max-w-lg p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wider">Bulk Date Assignment</h2>
-            <button
-              class="px-3 py-1 text-xs font-semibold border border-red-400 text-red-600 hover:bg-red-50"
-              @click="showBulkModal = false"
-            >
-              &times; Close
-            </button>
-          </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">School</label>
-            <select
-              v-model="bulkSchoolId"
-              class="w-full rounded-md border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select a school...</option>
-              <option v-for="school in schools" :key="school.id" :value="school.id">
-                {{ school.name }}
-              </option>
-            </select>
-          </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">Dates (one per line or comma-separated)</label>
-            <textarea
-              v-model="bulkDateInput"
-              rows="5"
-              placeholder="2026-03-01, 2026-03-02"
-              class="w-full rounded-md border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
-          <div class="flex justify-end gap-3">
-            <button
-              class="px-4 py-2 text-sm font-semibold border border-neutral-300 text-neutral-700 hover:bg-neutral-100"
-              @click="showBulkModal = false"
-            >
-              Cancel
-            </button>
-            <button
-              :disabled="isSavingBulk || !bulkSchoolId || !bulkDateInput.trim()"
-              class="px-4 py-2 text-sm font-semibold bg-neutral-900 text-white hover:bg-neutral-700 disabled:opacity-50"
-              @click="saveBulkDates"
-            >
-              {{ isSavingBulk ? 'Saving...' : 'Save Dates' }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <BulkDateAssignmentModal
+        v-if="showBulkModal"
+        :schools="schools"
+        @close="showBulkModal = false"
+        @saved="onBulkDatesSaved"
+      />
     </div>
   </AppShell>
 </template>
@@ -194,10 +151,13 @@ import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import EditDatesModal from '../../components/coordinator/EditDatesModal.vue';
+import BulkDateAssignmentModal from '../../components/coordinator/BulkDateAssignmentModal.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
+import { useToast } from '../../composables/useToast';
 
 const authStore = useAuthStore();
+const toast = useToast();
 
 interface SchoolDate {
   id: number;
@@ -314,9 +274,6 @@ function asSchedulingSchool(row: unknown): SchedulingSchool {
 }
 
 const showBulkModal = ref(false);
-const bulkSchoolId = ref<number | ''>('');
-const bulkDateInput = ref('');
-const isSavingBulk = ref(false);
 
 function formatDateDisplay(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -359,31 +316,9 @@ async function onDatesSaved() {
   await fetchData();
 }
 
-async function saveBulkDates() {
-  if (!bulkSchoolId.value || !bulkDateInput.value.trim()) return;
-
-  const assessmentDates = bulkDateInput.value
-    .split(/[\n,]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  if (assessmentDates.length === 0) return;
-
-  isSavingBulk.value = true;
-
-  try {
-    await api.post(`/coordinator/${bulkSchoolId.value}/dates/bulk`, {
-      assessmentDates,
-    });
-    showBulkModal.value = false;
-    bulkDateInput.value = '';
-    bulkSchoolId.value = '';
-    await fetchData();
-  } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to bulk schedule dates');
-  } finally {
-    isSavingBulk.value = false;
-  }
+async function onBulkDatesSaved() {
+  showBulkModal.value = false;
+  await fetchData();
 }
 
 async function fetchData() {

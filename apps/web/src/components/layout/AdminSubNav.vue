@@ -50,6 +50,8 @@ const allTabs = [
   { name: 'admin-data-verification', label: 'Data Verification', adminOnly: false },
   { name: 'admin-user-management', label: 'User Management', adminOnly: true },
   { name: 'admin-class-view', label: 'Class View', adminOnly: false },
+  { name: 'admin-cycle-classes', label: 'Class Management', adminOnly: true },
+  { name: 'admin-students', label: 'Students', adminOnly: true },
   // { name: 'admin-reports', label: 'Reports', adminOnly: false },
   // { name: 'admin-audit-log', label: 'Audit Log', adminOnly: false },
 ];
@@ -63,6 +65,12 @@ const tabs = computed(() =>
 const isActive = (tabName: string): boolean => {
   if (tabName === 'admin-class-view') {
     return route.name === 'admin-class-view' || route.name === 'admin-class-students';
+  }
+  if (tabName === 'admin-cycle-classes') {
+    return route.name === 'admin-cycle-classes';
+  }
+  if (tabName === 'admin-students') {
+    return route.name === 'admin-students';
   }
   return route.name === tabName;
 };

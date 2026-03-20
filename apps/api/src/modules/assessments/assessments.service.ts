@@ -92,7 +92,7 @@ export class AssessmentsService {
      * Uses SQL Server row-level locking (UPDLOCK, ROWLOCK) for concurrency safety.
      * Enforces ownership - evaluators can only start assessments for assigned classes.
      */
-    async startAssessment(dto: StartAssessmentDto, evaluatorId: number) {
+    async startAssessment(dto: StartAssessmentDto, evaluatorId: number, userRoles?: string[]) {
         // Check cycle is approved
         const cycle = await this.cyclesService.checkCycleApproval();
         if (cycle.id !== dto.cycleId) {
@@ -123,21 +123,26 @@ export class AssessmentsService {
 
         const studentClass = classStudent.class;
 
-        // Check if evaluator is assigned to this class
-        const assignment = await this.prisma.evaluatorAssignment.findFirst({
-            where: {
-                evaluatorId,
-                classId: studentClass.id,
-                cycleId: dto.cycleId,
-            },
-        });
+        // Admin and Coordinator can start assessments without being assigned
+        const isPrivileged = userRoles?.some(r => r === 'ADMIN' || r === 'COORDINATOR');
 
-        if (!assignment) {
-            throw new ForbiddenException({
-                statusCode: 403,
-                message: 'You are not assigned to this class',
-                error: 'NOT_ASSIGNED_TO_CLASS',
+        if (!isPrivileged) {
+            // Check if evaluator is assigned to this class
+            const assignment = await this.prisma.evaluatorAssignment.findFirst({
+                where: {
+                    evaluatorId,
+                    classId: studentClass.id,
+                    cycleId: dto.cycleId,
+                },
             });
+
+            if (!assignment) {
+                throw new ForbiddenException({
+                    statusCode: 403,
+                    message: 'You are not assigned to this class',
+                    error: 'NOT_ASSIGNED_TO_CLASS',
+                });
+            }
         }
 
         // Use interactive transaction with row-level locking
@@ -355,6 +360,7 @@ export class AssessmentsService {
         id: number,
         dto: UpdateAssessmentDto,
         userId: number,
+        userRoles?: string[],
     ) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { id },
@@ -373,9 +379,8 @@ export class AssessmentsService {
         }
 
         // Check if user has permission (is the assigned evaluator or admin/coordinator)
-        if (assessment.evaluatorId !== userId) {
-            // For simplicity, we're checking if the user is the evaluator
-            // In production, we'd also check ADMIN/COORDINATOR roles
+        const isPrivileged = userRoles?.some(r => r === 'ADMIN' || r === 'COORDINATOR');
+        if (assessment.evaluatorId !== userId && !isPrivileged) {
             throw new ForbiddenException({
                 statusCode: 403,
                 message: 'You are not the assigned evaluator for this assessment',
@@ -518,6 +523,7 @@ export class AssessmentsService {
         id: number,
         dto: CompleteAssessmentDto,
         userId: number,
+        userRoles?: string[],
     ) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { id },
@@ -527,7 +533,8 @@ export class AssessmentsService {
             throw new NotFoundException('Assessment not found');
         }
 
-        if (assessment.evaluatorId !== userId) {
+        const isPrivilegedComplete = userRoles?.some(r => r === 'ADMIN' || r === 'COORDINATOR');
+        if (assessment.evaluatorId !== userId && !isPrivilegedComplete) {
             throw new ForbiddenException({
                 statusCode: 403,
                 message: 'You are not the assigned evaluator for this assessment',
@@ -724,7 +731,7 @@ export class AssessmentsService {
     /**
      * Mark student as absent.
      */
-    async markAbsent(id: number, userId: number) {
+    async markAbsent(id: number, userId: number, userRoles?: string[]) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { id },
         });
@@ -733,7 +740,8 @@ export class AssessmentsService {
             throw new NotFoundException('Assessment not found');
         }
 
-        if (assessment.evaluatorId !== userId) {
+        const isPrivilegedAbsent = userRoles?.some(r => r === 'ADMIN' || r === 'COORDINATOR');
+        if (assessment.evaluatorId !== userId && !isPrivilegedAbsent) {
             throw new ForbiddenException({
                 statusCode: 403,
                 message: 'You are not assigned evaluator for this assessment',

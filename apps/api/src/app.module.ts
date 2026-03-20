@@ -7,6 +7,7 @@ import { UsersModule } from './modules/users/users.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { CyclesModule } from './modules/cycles/cycles.module';
 import { ClassesModule } from './modules/classes/classes.module';
+import { StudentsModule } from './modules/students/students.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { SchedulingModule } from './modules/scheduling/scheduling.module';
@@ -36,6 +37,7 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     IngestionModule,
     CyclesModule,
     ClassesModule,
+    StudentsModule,
     AuditModule,
     AssignmentsModule,
     SchedulingModule,

@@ -29,6 +29,18 @@
         <thead class="bg-neutral-50">
           <tr>
             <th
+              v-if="selectable"
+              class="w-10 px-4 py-3"
+            >
+              <input
+                type="checkbox"
+                :checked="isAllPageSelected"
+                :indeterminate="isSomePageSelected && !isAllPageSelected"
+                class="rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+                @change="toggleSelectAll"
+              />
+            </th>
+            <th
               v-for="column in columns"
               :key="column.key"
               :class="[
@@ -52,12 +64,20 @@
 
         <tbody class="divide-y divide-neutral-200 bg-white">
           <tr v-if="pagedData.length === 0">
-            <td :colspan="columns.length" class="px-4 py-8 text-center text-sm text-neutral-500">
+            <td :colspan="selectable ? columns.length + 1 : columns.length" class="px-4 py-8 text-center text-sm text-neutral-500">
               {{ emptyText }}
             </td>
           </tr>
 
           <tr v-for="(row, rowIndex) in pagedData" :key="getRowKey(row, rowIndex)" class="hover:bg-neutral-50">
+            <td v-if="selectable" class="w-10 px-4 py-3">
+              <input
+                type="checkbox"
+                :checked="selectedKeys.includes(getRowKey(row, rowIndex))"
+                class="rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+                @change="toggleRowSelection(getRowKey(row, rowIndex))"
+              />
+            </td>
             <td
               v-for="column in columns"
               :key="column.key"
@@ -138,13 +158,52 @@ const props = withDefaults(defineProps<{
   initialPageSize?: number;
   pageSizeOptions?: number[];
   rowKey?: string;
+  selectable?: boolean;
+  selectedKeys?: (string | number)[];
 }>(), {
   searchPlaceholder: 'Search...',
   emptyText: 'No results found.',
   initialPageSize: 10,
   pageSizeOptions: () => [10, 20, 50, 100],
   rowKey: 'id',
+  selectable: false,
+  selectedKeys: () => [],
 });
+
+const emit = defineEmits<{
+  'update:selectedKeys': [keys: (string | number)[]];
+}>();
+
+const isAllPageSelected = computed(() => {
+  if (pagedData.value.length === 0) return false;
+  return pagedData.value.every((row, idx) =>
+    props.selectedKeys.includes(getRowKey(row, idx)),
+  );
+});
+
+const isSomePageSelected = computed(() => {
+  return pagedData.value.some((row, idx) =>
+    props.selectedKeys.includes(getRowKey(row, idx)),
+  );
+});
+
+function toggleSelectAll() {
+  const pageKeys = pagedData.value.map((row, idx) => getRowKey(row, idx));
+  if (isAllPageSelected.value) {
+    emit('update:selectedKeys', props.selectedKeys.filter((k) => !pageKeys.includes(k)));
+  } else {
+    const merged = new Set([...props.selectedKeys, ...pageKeys]);
+    emit('update:selectedKeys', [...merged]);
+  }
+}
+
+function toggleRowSelection(key: string | number) {
+  if (props.selectedKeys.includes(key)) {
+    emit('update:selectedKeys', props.selectedKeys.filter((k) => k !== key));
+  } else {
+    emit('update:selectedKeys', [...props.selectedKeys, key]);
+  }
+}
 
 const searchQuery = ref('');
 const sortKey = ref<string | null>(null);

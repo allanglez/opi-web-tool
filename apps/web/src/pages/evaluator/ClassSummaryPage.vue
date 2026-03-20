@@ -163,6 +163,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useToast } from '../../composables/useToast';
 import { Chart, registerables } from 'chart.js';
 import SubmitConfirmationModal from '../../components/class/SubmitConfirmationModal.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
@@ -172,6 +173,7 @@ Chart.register(...registerables);
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const classId = computed(() => parseInt(route.params.id as string, 10));
 const loading = ref(false);
@@ -402,7 +404,7 @@ const exportToCSV = async () => {
     window.URL.revokeObjectURL(url);
   } catch (err) {
     console.error('Export failed:', err);
-    alert('Failed to export CSV');
+    toast.error('Failed to export CSV');
   } finally {
     exporting.value = false;
   }
@@ -428,7 +430,7 @@ const printSummary = () => {
 const handleSubmitted = () => {
   isSubmitted.value = true;
   showSubmitModal.value = false;
-  alert('Class submitted successfully!');
+  toast.success('Class submitted successfully!');
   loadSummary();
 };
 

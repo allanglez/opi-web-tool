@@ -30,13 +30,54 @@
 
     <!-- Users Table -->
     <BaseCard v-else>
-      <h2 class="text-lg font-semibold text-neutral-900 mb-4">System Users</h2>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-neutral-900">System Users</h2>
+      </div>
+
+      <!-- Bulk Actions Bar -->
+      <div
+        v-if="selectedUserIds.length > 0"
+        class="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md"
+      >
+        <span class="text-sm font-medium text-blue-800">
+          {{ selectedUserIds.length }} user{{ selectedUserIds.length !== 1 ? 's' : '' }} selected
+        </span>
+        <div class="flex gap-2 ml-auto">
+          <button
+            class="px-3 py-1.5 text-xs font-semibold border border-neutral-900 text-neutral-900 rounded hover:bg-neutral-100 uppercase tracking-wider"
+            @click="showBulkRoleModal = true"
+          >
+            Change Role
+          </button>
+          <button
+            class="px-3 py-1.5 text-xs font-semibold border border-red-400 text-red-600 rounded hover:bg-red-50 uppercase tracking-wider"
+            @click="showBulkDeactivateModal = true"
+          >
+            Deactivate
+          </button>
+          <button
+            class="px-3 py-1.5 text-xs font-semibold border border-green-400 text-green-600 rounded hover:bg-green-50 uppercase tracking-wider"
+            @click="bulkActivate"
+          >
+            Activate
+          </button>
+          <button
+            class="px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-700"
+            @click="selectedUserIds = []"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
       <AppDataTable
         :data="users"
         :columns="userColumns"
         search-placeholder="Search users by name, email, role..."
         empty-text="No users found."
         :initial-page-size="10"
+        selectable
+        v-model:selected-keys="selectedUserIds"
       >
         <template #cell-name="{ row }">
           <div class="py-1">
@@ -258,6 +299,100 @@
         </div>
       </div>
     </div>
+
+    <!-- Bulk Deactivate Confirmation Modal -->
+    <div v-if="showBulkDeactivateModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showBulkDeactivateModal = false">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="p-6">
+          <h2 class="text-lg font-bold text-neutral-900 mb-2">Bulk Deactivation</h2>
+          <p class="text-sm text-neutral-600 mb-3">
+            Are you sure you want to deactivate <strong>{{ bulkDeactivatableUsers.length }}</strong> user{{ bulkDeactivatableUsers.length !== 1 ? 's' : '' }}?
+            They will no longer be able to access the system.
+          </p>
+          <div v-if="bulkDeactivatableUsers.length > 0" class="max-h-40 overflow-y-auto border border-neutral-200 rounded-md">
+            <div
+              v-for="u in bulkDeactivatableUsers"
+              :key="u.id"
+              class="px-3 py-2 text-sm text-neutral-700 border-b border-neutral-100 last:border-b-0"
+            >
+              {{ u.firstName }} {{ u.lastName }} <span class="text-neutral-400">({{ u.email }})</span>
+            </div>
+          </div>
+          <p v-if="bulkSkippedCount > 0" class="text-xs text-neutral-500 mt-2">
+            {{ bulkSkippedCount }} user{{ bulkSkippedCount !== 1 ? 's' : '' }} skipped (already inactive or is yourself)
+          </p>
+        </div>
+        <div class="flex items-center justify-end space-x-3 p-6 border-t border-neutral-200">
+          <button
+            class="px-4 py-2 text-sm font-semibold text-neutral-700 border border-neutral-300 rounded hover:bg-neutral-100 transition-colors"
+            @click="showBulkDeactivateModal = false"
+          >
+            CANCEL
+          </button>
+          <button
+            class="px-4 py-2 text-sm font-semibold text-white bg-red-600 border border-red-600 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+            :disabled="bulkDeactivatableUsers.length === 0 || isBulkProcessing"
+            @click="bulkDeactivate"
+          >
+            {{ isBulkProcessing ? 'DEACTIVATING...' : 'DEACTIVATE ALL' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Change Role Modal -->
+    <div v-if="showBulkRoleModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showBulkRoleModal = false">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="p-6">
+          <h2 class="text-lg font-bold text-neutral-900 mb-2">Bulk Change Role</h2>
+          <p class="text-sm text-neutral-600 mb-3">
+            Change role for <strong>{{ selectedUserIds.length }}</strong> selected user{{ selectedUserIds.length !== 1 ? 's' : '' }}:
+          </p>
+          <div class="max-h-32 overflow-y-auto border border-neutral-200 rounded-md mb-4">
+            <div
+              v-for="u in selectedUsers"
+              :key="u.id"
+              class="px-3 py-2 text-sm text-neutral-700 border-b border-neutral-100 last:border-b-0 flex items-center justify-between"
+            >
+              <span>{{ u.firstName }} {{ u.lastName }}</span>
+              <span
+                class="inline-block px-2 py-0.5 text-xs font-semibold rounded"
+                :class="getRoleBadgeClass(u.roles[0])"
+              >
+                {{ u.roles[0] }}
+              </span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-neutral-700 uppercase tracking-wide mb-1">New Role</label>
+            <select
+              v-model="bulkNewRole"
+              class="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-neutral-400 text-sm"
+            >
+              <option value="PENDING">Pending (No Access)</option>
+              <option value="EVALUATOR">Evaluator</option>
+              <option value="COORDINATOR">Coordinator</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex items-center justify-end space-x-3 p-6 border-t border-neutral-200">
+          <button
+            class="px-4 py-2 text-sm font-semibold text-neutral-700 border border-neutral-300 rounded hover:bg-neutral-100 transition-colors"
+            @click="showBulkRoleModal = false"
+          >
+            CANCEL
+          </button>
+          <button
+            class="px-4 py-2 text-sm font-semibold text-white bg-neutral-900 border border-neutral-900 rounded hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            :disabled="isBulkProcessing"
+            @click="bulkChangeRole"
+          >
+            {{ isBulkProcessing ? 'SAVING...' : 'CHANGE ROLE' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </AppShell>
 </template>
 
@@ -273,8 +408,10 @@ import LoadingState from '../../components/ui/LoadingState.vue';
 import ErrorState from '../../components/ui/ErrorState.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
+import { useToast } from '../../composables/useToast';
 
 const authStore = useAuthStore();
+const toast = useToast();
 
 const currentUser = computed(() => authStore.user ? {
   firstName: authStore.user.firstName,
@@ -395,9 +532,30 @@ const canEditUser = computed(() => {
   return editingUser.value.fullName.trim() !== '' && editingUser.value.email.trim() !== '';
 });
 
+// Row selection
+const selectedUserIds = ref<(string | number)[]>([]);
+
 // Deactivate Modal
 const showDeactivateModal = ref(false);
 const deactivatingUser = ref<UserItem | null>(null);
+
+// Bulk modals
+const showBulkDeactivateModal = ref(false);
+const showBulkRoleModal = ref(false);
+const bulkNewRole = ref('EVALUATOR');
+const isBulkProcessing = ref(false);
+
+const selectedUsers = computed(() =>
+  users.value.filter((u) => selectedUserIds.value.includes(u.id)),
+);
+
+const bulkDeactivatableUsers = computed(() =>
+  selectedUsers.value.filter((u) => u.isActive && u.id !== authStore.user?.id),
+);
+
+const bulkSkippedCount = computed(() =>
+  selectedUsers.value.length - bulkDeactivatableUsers.value.length,
+);
 
 function getRoleBadgeClass(role: string): string {
   switch (role) {
@@ -443,7 +601,7 @@ async function createUser() {
     newUser.value = { fullName: '', email: '', role: 'EVALUATOR' };
     await fetchUsers();
   } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to create user');
+    toast.error(err instanceof Error ? err.message : 'Failed to create user');
   } finally {
     isCreating.value = false;
   }
@@ -476,7 +634,7 @@ async function updateUser() {
     showEditModal.value = false;
     await fetchUsers();
   } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to update user');
+    toast.error(err instanceof Error ? err.message : 'Failed to update user');
   } finally {
     isEditing.value = false;
   }
@@ -495,7 +653,7 @@ async function deactivateUser() {
     deactivatingUser.value = null;
     await fetchUsers();
   } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to deactivate user');
+    toast.error(err instanceof Error ? err.message : 'Failed to deactivate user');
   }
 }
 
@@ -504,7 +662,78 @@ async function activateUser(user: UserItem) {
     await api.patch(`/admin/users/${user.id}/activate`);
     await fetchUsers();
   } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to activate user');
+    toast.error(err instanceof Error ? err.message : 'Failed to activate user');
+  }
+}
+
+async function bulkDeactivate() {
+  isBulkProcessing.value = true;
+  try {
+    const errors: string[] = [];
+    for (const u of bulkDeactivatableUsers.value) {
+      try {
+        await api.patch(`/admin/users/${u.id}/deactivate`);
+      } catch {
+        errors.push(`${u.firstName} ${u.lastName}`);
+      }
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to deactivate: ${errors.join(', ')}`);
+    }
+    showBulkDeactivateModal.value = false;
+    selectedUserIds.value = [];
+    await fetchUsers();
+  } finally {
+    isBulkProcessing.value = false;
+  }
+}
+
+async function bulkActivate() {
+  isBulkProcessing.value = true;
+  try {
+    const toActivate = selectedUsers.value.filter((u) => !u.isActive);
+    const errors: string[] = [];
+    for (const u of toActivate) {
+      try {
+        await api.patch(`/admin/users/${u.id}/activate`);
+      } catch {
+        errors.push(`${u.firstName} ${u.lastName}`);
+      }
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to activate: ${errors.join(', ')}`);
+    }
+    selectedUserIds.value = [];
+    await fetchUsers();
+  } finally {
+    isBulkProcessing.value = false;
+  }
+}
+
+async function bulkChangeRole() {
+  isBulkProcessing.value = true;
+  try {
+    const errors: string[] = [];
+    for (const u of selectedUsers.value) {
+      try {
+        await api.put(`/admin/users/${u.id}`, {
+          firstName: u.firstName,
+          lastName: u.lastName,
+          email: u.email,
+          role: bulkNewRole.value,
+        });
+      } catch {
+        errors.push(`${u.firstName} ${u.lastName}`);
+      }
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to change role for: ${errors.join(', ')}`);
+    }
+    showBulkRoleModal.value = false;
+    selectedUserIds.value = [];
+    await fetchUsers();
+  } finally {
+    isBulkProcessing.value = false;
   }
 }
 

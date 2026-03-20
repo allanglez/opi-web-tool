@@ -25,6 +25,11 @@ export const authGuard = async (
     }
   }
 
+  // Redirect PENDING or INACTIVE users to the account-inactive page
+  if (authStore.isPending || authStore.isInactive) {
+    return next({ name: 'account-inactive' });
+  }
+
   // Check role requirements
   const requiredRoles = to.meta.roles as string[] | undefined;
   if (requiredRoles && requiredRoles.length > 0) {

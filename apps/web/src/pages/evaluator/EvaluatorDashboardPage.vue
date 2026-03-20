@@ -166,6 +166,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ChevronRight } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { useToast } from '../../composables/useToast';
 import { isMockAuthMode } from '../../auth/mode';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
@@ -175,6 +176,7 @@ import StatCard from '../../components/ui/StatCard.vue';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const toast = useToast();
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const currentUser = computed(() => authStore.user ? {
@@ -264,7 +266,7 @@ async function handleStudentAction(student: DashboardData['nextStudents'][0]) {
 
     if (!res.ok) {
       const err = await res.json();
-      alert(err.message || 'Failed to start assessment');
+      toast.error(err.message || 'Failed to start assessment');
       return;
     }
 
@@ -274,7 +276,7 @@ async function handleStudentAction(student: DashboardData['nextStudents'][0]) {
       query: { from: 'evaluator-dashboard', returnTo: route.fullPath },
     });
   } catch (e) {
-    alert(e instanceof Error ? e.message : 'Failed to start assessment');
+    toast.error(e instanceof Error ? e.message : 'Failed to start assessment');
   }
 }
 

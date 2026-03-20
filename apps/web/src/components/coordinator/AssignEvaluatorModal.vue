@@ -107,6 +107,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { api } from '../../utils/api';
+import { useToast } from '../../composables/useToast';
 
 interface ClassEvaluator {
   id: number;
@@ -151,6 +152,7 @@ const emit = defineEmits<{
   saved: [];
 }>();
 
+const toast = useToast();
 const selectedEvaluatorIds = ref<number[]>([]);
 const isSaving = ref(false);
 
@@ -209,7 +211,7 @@ async function saveAssignment() {
 
     emit('saved');
   } catch (err) {
-    alert(err instanceof Error ? err.message : 'Failed to save assignment');
+    toast.error(err instanceof Error ? err.message : 'Failed to save assignment');
   } finally {
     isSaving.value = false;
   }

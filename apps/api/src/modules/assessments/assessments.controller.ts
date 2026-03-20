@@ -16,7 +16,7 @@ import {
     ReEvaluateDto,
 } from './dto/assessments.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Assessments')
 @ApiBearerAuth('access-token')
@@ -29,9 +29,9 @@ export class AssessmentsController {
     @ApiOperation({ summary: 'Start a new OPI assessment for a student' })
     async startAssessment(
         @Body() dto: StartAssessmentDto,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: AuthUser,
     ) {
-        return this.assessmentsService.startAssessment(dto, user.id);
+        return this.assessmentsService.startAssessment(dto, user.id, user.roles);
     }
 
     @Get(':id')
@@ -50,9 +50,9 @@ export class AssessmentsController {
     async updateAssessment(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: UpdateAssessmentDto,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: AuthUser,
     ) {
-        return this.assessmentsService.updateAssessment(id, dto, user.id);
+        return this.assessmentsService.updateAssessment(id, dto, user.id, user.roles);
     }
 
     @Post(':id/complete')
@@ -61,9 +61,9 @@ export class AssessmentsController {
     async completeAssessment(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: CompleteAssessmentDto,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: AuthUser,
     ) {
-        return this.assessmentsService.completeAssessment(id, dto, user.id);
+        return this.assessmentsService.completeAssessment(id, dto, user.id, user.roles);
     }
 
     @Post(':id/reopen')
@@ -71,7 +71,7 @@ export class AssessmentsController {
     @ApiOperation({ summary: 'Reopen a completed assessment for corrections (coordinator/admin only)' })
     async reopenAssessment(
         @Param('id', ParseIntPipe) id: number,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: AuthUser,
     ) {
         return this.assessmentsService.reopenAssessment(id, user.id);
     }
@@ -81,9 +81,9 @@ export class AssessmentsController {
     @ApiOperation({ summary: 'Mark a student as absent for their assessment' })
     async markAbsent(
         @Param('id', ParseIntPipe) id: number,
-        @CurrentUser() user: { id: number },
+        @CurrentUser() user: AuthUser,
     ) {
-        return this.assessmentsService.markAbsent(id, user.id);
+        return this.assessmentsService.markAbsent(id, user.id, user.roles);
     }
 
     @Get('opi-levels')

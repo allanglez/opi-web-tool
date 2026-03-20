@@ -4,10 +4,6 @@
   - manual_edit_audit_log table for tracking all manual corrections
 */
 
-BEGIN TRY
-
-BEGIN TRAN;
-
 -- Add is_manually_edited to students
 ALTER TABLE [dbo].[students] ADD [is_manually_edited] BIT NOT NULL CONSTRAINT [DF_students_is_manually_edited] DEFAULT 0;
 
@@ -33,16 +29,3 @@ CREATE TABLE [dbo].[manual_edit_audit_log] (
 CREATE NONCLUSTERED INDEX [IX_manual_edit_audit_log_entity] ON [dbo].[manual_edit_audit_log]([entity_type], [entity_id]);
 CREATE NONCLUSTERED INDEX [IX_manual_edit_audit_log_changed_by] ON [dbo].[manual_edit_audit_log]([changed_by]);
 CREATE NONCLUSTERED INDEX [IX_manual_edit_audit_log_changed_at] ON [dbo].[manual_edit_audit_log]([changed_at]);
-
-COMMIT TRAN;
-
-END TRY
-BEGIN CATCH
-
-IF @@TRANCOUNT > 0
-BEGIN
-    ROLLBACK TRAN;
-END;
-THROW
-
-END CATCH

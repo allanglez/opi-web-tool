@@ -36,6 +36,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { api } from '../utils/api';
 import AppShell from '../components/layout/AppShell.vue';
 import { useToast } from '../composables/useToast';
 
@@ -55,19 +56,11 @@ const checkApprovalStatus = async () => {
   isChecking.value = true;
 
   try {
-    const response = await fetch('/api/v1/cycles/active', {
-      credentials: 'include',
-    });
-
-    if (response.ok) {
-      const cycle = await response.json();
-      if (cycle.isApproved) {
-        router.push('/admin/dashboard');
-      } else {
-        toast.error('Cycle is still not approved. Please check back later.');
-      }
+    const cycle = await api.get<{ isApproved: boolean }>('/cycles/active');
+    if (cycle.isApproved) {
+      router.push('/admin/dashboard');
     } else {
-      toast.error('No active cycle found. Please contact an administrator.');
+      toast.error('Cycle is still not approved. Please check back later.');
     }
   } catch (err) {
     console.error('Failed to check approval status:', err);

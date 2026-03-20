@@ -154,6 +154,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { Pencil } from 'lucide-vue-next';
 import { useAuthStore } from '../../../stores/auth';
+import { api } from '../../../utils/api';
 import AppShell from '../../../components/layout/AppShell.vue';
 import AdminSubNav from '../../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../../components/ui/BaseCard.vue';
@@ -284,14 +285,8 @@ const filters = ref({
 
 const fetchActiveCycle = async () => {
   try {
-    const response = await fetch('/api/v1/cycles/active', {
-      credentials: 'include',
-    });
-
-    if (response.ok) {
-      activeCycle.value = await response.json();
-      filters.value.cycleId = activeCycle.value?.id.toString() || '';
-    }
+    activeCycle.value = await api.get<Cycle>('/cycles/active');
+    filters.value.cycleId = activeCycle.value?.id.toString() || '';
   } catch (err) {
     console.error('Failed to fetch active cycle:', err);
   }
@@ -302,20 +297,12 @@ const fetchClasses = async () => {
   error.value = null;
 
   try {
-    const params = new URLSearchParams();
-    if (filters.value.cycleId) params.append('cycleId', filters.value.cycleId);
-    if (filters.value.schoolId) params.append('schoolId', filters.value.schoolId);
-    if (filters.value.programId) params.append('programId', filters.value.programId);
+    const params: Record<string, unknown> = {};
+    if (filters.value.cycleId) params.cycleId = filters.value.cycleId;
+    if (filters.value.schoolId) params.schoolId = filters.value.schoolId;
+    if (filters.value.programId) params.programId = filters.value.programId;
 
-    const response = await fetch(`/api/v1/admin/classes?${params.toString()}`, {
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch classes');
-    }
-
-    classes.value = await response.json();
+    classes.value = await api.get<Class[]>('/admin/classes', params);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error';
   } finally {
@@ -328,20 +315,9 @@ const toggleInclusion = async (classItem: Class) => {
   error.value = null;
 
   try {
-    const response = await fetch(`/api/v1/admin/classes/${classItem.id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        isIncluded: !classItem.isIncluded,
-      }),
+    await api.patch(`/admin/classes/${classItem.id}`, {
+      isIncluded: !classItem.isIncluded,
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to update class inclusion');
-    }
 
     classItem.isIncluded = !classItem.isIncluded;
   } catch (err) {

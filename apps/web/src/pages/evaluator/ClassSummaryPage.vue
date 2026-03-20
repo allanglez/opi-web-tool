@@ -164,6 +164,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from '../../composables/useToast';
+import { api } from '../../utils/api';
 import { Chart, registerables } from 'chart.js';
 import SubmitConfirmationModal from '../../components/class/SubmitConfirmationModal.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
@@ -275,17 +276,7 @@ const loadSummary = async () => {
   error.value = null;
 
   try {
-    const response = await fetch(`/api/v1/classes/${classId.value}/summary`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to load class summary');
-    }
-
-    const data = await response.json();
+    const data = await api.get<{ data: any }>(`/classes/${classId.value}/summary`);
     summary.value = data.data;
 
     // Check submission status
@@ -302,16 +293,8 @@ const loadSummary = async () => {
 
 const checkSubmissionStatus = async () => {
   try {
-    const response = await fetch(`/api/v1/classes/${classId.value}/submission-status`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      canSubmit.value = data.data.canSubmit;
-    }
+    const data = await api.get<{ data: { canSubmit: boolean } }>(`/classes/${classId.value}/submission-status`);
+    canSubmit.value = data.data.canSubmit;
   } catch (err) {
     console.error('Failed to check submission status:', err);
   }

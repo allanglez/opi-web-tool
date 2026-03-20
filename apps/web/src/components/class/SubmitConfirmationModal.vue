@@ -118,6 +118,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { AlertCircle, CircleCheck, CircleX, TriangleAlert, X } from 'lucide-vue-next';
+import { api } from '../../utils/api';
+import { useAuthStore } from '../../stores/auth';
 
 interface Props {
   classId: number;
@@ -130,6 +132,8 @@ const emit = defineEmits<{
   submitted: [];
 }>();
 
+const authStore = useAuthStore();
+
 const validating = ref(true);
 const validationResult = ref<any>(null);
 const notes = ref('');
@@ -139,17 +143,7 @@ const submitError = ref<string | null>(null);
 const validateSubmission = async () => {
   validating.value = true;
   try {
-    const response = await fetch(`/api/v1/classes/${props.classId}/submission-status`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to validate submission');
-    }
-
-    const data = await response.json();
+    const data = await api.get<{ data: any }>(`/classes/${props.classId}/submission-status`);
     validationResult.value = data.data;
   } catch (err: any) {
     submitError.value = err.message || 'Validation failed';
@@ -163,21 +157,10 @@ const handleSubmit = async () => {
   submitError.value = null;
 
   try {
-    const response = await fetch(`/api/v1/assessments/classes/${props.classId}/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        submittedBy: 1, // TODO: Get from auth context
-        notes: notes.value || undefined,
-      }),
+    await api.post(`/assessments/classes/${props.classId}/submit`, {
+      submittedBy: authStore.user?.id,
+      notes: notes.value || undefined,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Submission failed');
-    }
 
     emit('submitted');
   } catch (err: any) {

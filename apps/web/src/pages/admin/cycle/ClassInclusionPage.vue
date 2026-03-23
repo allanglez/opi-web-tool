@@ -15,7 +15,7 @@
           <select
             v-model="filters.cycleId"
             class="w-full px-3 py-2 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @change="fetchClasses"
+            @change="onFilterChange"
           >
             <option value="">All Cycles</option>
             <option v-if="activeCycle" :value="activeCycle.id">{{ activeCycle.name }}</option>
@@ -26,9 +26,12 @@
           <select
             v-model="filters.schoolId"
             class="w-full px-3 py-2 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @change="fetchClasses"
+            @change="onFilterChange"
           >
             <option value="">All Schools</option>
+            <option v-for="school in schools" :key="school.id" :value="school.id">
+              {{ school.name }}
+            </option>
           </select>
         </div>
         <div>
@@ -36,9 +39,12 @@
           <select
             v-model="filters.programId"
             class="w-full px-3 py-2 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @change="fetchClasses"
+            @change="onFilterChange"
           >
             <option value="">All Programs</option>
+            <option v-for="program in programsList" :key="program.id" :value="program.id">
+              {{ program.name }}
+            </option>
           </select>
         </div>
       </div>
@@ -58,6 +64,38 @@
         </button>
       </div>
 
+      <!-- Bulk Actions Bar -->
+      <div
+        v-if="selectedClassIds.length > 0"
+        class="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md"
+      >
+        <span class="text-sm font-medium text-blue-800">
+          {{ selectedClassIds.length }} class{{ selectedClassIds.length !== 1 ? 'es' : '' }} selected
+        </span>
+        <div class="flex gap-2 ml-auto">
+          <button
+            class="px-3 py-1.5 text-xs font-semibold border border-green-600 text-green-700 rounded hover:bg-green-50 uppercase tracking-wider"
+            :disabled="isBulkProcessing"
+            @click="bulkSetInclusion(true)"
+          >
+            {{ isBulkProcessing ? 'Processing...' : 'Include All' }}
+          </button>
+          <button
+            class="px-3 py-1.5 text-xs font-semibold border border-red-400 text-red-600 rounded hover:bg-red-50 uppercase tracking-wider"
+            :disabled="isBulkProcessing"
+            @click="bulkSetInclusion(false)"
+          >
+            {{ isBulkProcessing ? 'Processing...' : 'Exclude All' }}
+          </button>
+          <button
+            class="px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-700"
+            @click="selectedClassIds = []"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
       <div v-if="isLoading && classes.length === 0" class="text-center py-8 text-neutral-500">
         Loading classes...
       </div>
@@ -73,6 +111,8 @@
           search-placeholder="Search school, class, program, teacher..."
           empty-text="No classes found."
           :initial-page-size="10"
+          selectable
+          v-model:selected-keys="selectedClassIds"
         >
           <template #cell-school="{ row }">
             <span class="text-sm text-neutral-900">{{ asClassItem(row).school.name }}</span>
@@ -155,6 +195,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Pencil } from 'lucide-vue-next';
 import { useAuthStore } from '../../../stores/auth';
 import { api } from '../../../utils/api';
+import { useToast } from '../../../composables/useToast';
 import AppShell from '../../../components/layout/AppShell.vue';
 import AdminSubNav from '../../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../../components/ui/BaseCard.vue';
@@ -163,6 +204,7 @@ import ClassEditDialog from '../../../components/admin/ClassEditDialog.vue';
 import type { DataTableColumn } from '../../../components/ui/data-table/types';
 
 const authStore = useAuthStore();
+const toast = useToast();
 
 const currentUser = computed(() => authStore.user ? {
   firstName: authStore.user.firstName,
@@ -170,7 +212,7 @@ const currentUser = computed(() => authStore.user ? {
   email: authStore.user.email,
 } : null);
 
-interface Class {
+interface ClassItem {
   id: number;
   classCode: string;
   grade?: number;
@@ -195,9 +237,17 @@ interface Class {
   };
 }
 
+interface School {
+  id: number;
+  schoolCode: string;
+  name: string;
+  schoolType: string | null;
+}
+
 interface Program {
   id: number;
   name: string;
+  code: string;
 }
 
 interface Cycle {
@@ -205,16 +255,20 @@ interface Cycle {
   name: string;
 }
 
-const classes = ref<Class[]>([]);
+const classes = ref<ClassItem[]>([]);
+const schools = ref<School[]>([]);
+const programsList = ref<Program[]>([]);
 const activeCycle = ref<Cycle | null>(null);
 const updatingClassIds = ref(new Set<number>());
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const editDialogVisible = ref(false);
-const selectedClass = ref<Class | null>(null);
+const selectedClass = ref<ClassItem | null>(null);
 const programs = ref<Program[]>([]);
+const selectedClassIds = ref<(string | number)[]>([]);
+const isBulkProcessing = ref(false);
 
-const classColumns: DataTableColumn<Class>[] = [
+const classColumns: DataTableColumn<ClassItem>[] = [
   {
     key: 'school',
     header: 'School',
@@ -273,8 +327,8 @@ const classColumns: DataTableColumn<Class>[] = [
   },
 ];
 
-function asClassItem(row: unknown): Class {
-  return row as Class;
+function asClassItem(row: unknown): ClassItem {
+  return row as ClassItem;
 }
 
 const filters = ref({
@@ -283,12 +337,34 @@ const filters = ref({
   programId: '',
 });
 
+function onFilterChange() {
+  selectedClassIds.value = [];
+  fetchClasses();
+}
+
 const fetchActiveCycle = async () => {
   try {
     activeCycle.value = await api.get<Cycle>('/cycles/active');
     filters.value.cycleId = activeCycle.value?.id.toString() || '';
   } catch (err) {
     console.error('Failed to fetch active cycle:', err);
+  }
+};
+
+const fetchSchools = async () => {
+  try {
+    schools.value = await api.get<School[]>('/admin/schools');
+  } catch (err) {
+    console.error('Failed to fetch schools:', err);
+  }
+};
+
+const fetchPrograms = async () => {
+  try {
+    programsList.value = await api.get<Program[]>('/admin/programs');
+    programs.value = programsList.value;
+  } catch (err) {
+    console.error('Failed to fetch programs:', err);
   }
 };
 
@@ -302,7 +378,7 @@ const fetchClasses = async () => {
     if (filters.value.schoolId) params.schoolId = filters.value.schoolId;
     if (filters.value.programId) params.programId = filters.value.programId;
 
-    classes.value = await api.get<Class[]>('/admin/classes', params);
+    classes.value = await api.get<ClassItem[]>('/admin/classes', params);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error';
   } finally {
@@ -310,7 +386,7 @@ const fetchClasses = async () => {
   }
 };
 
-const toggleInclusion = async (classItem: Class) => {
+const toggleInclusion = async (classItem: ClassItem) => {
   updatingClassIds.value.add(classItem.id);
   error.value = null;
 
@@ -327,7 +403,35 @@ const toggleInclusion = async (classItem: Class) => {
   }
 };
 
-function openEditDialog(classItem: Class) {
+async function bulkSetInclusion(isIncluded: boolean) {
+  if (selectedClassIds.value.length === 0) return;
+
+  isBulkProcessing.value = true;
+  error.value = null;
+
+  try {
+    await api.patch('/admin/classes/bulk-inclusion', {
+      classIds: selectedClassIds.value.map(Number),
+      isIncluded,
+    });
+
+    // Update local state
+    for (const cls of classes.value) {
+      if (selectedClassIds.value.includes(cls.id)) {
+        cls.isIncluded = isIncluded;
+      }
+    }
+
+    toast.success(`${selectedClassIds.value.length} class${selectedClassIds.value.length !== 1 ? 'es' : ''} ${isIncluded ? 'included' : 'excluded'}`);
+    selectedClassIds.value = [];
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to bulk update classes';
+  } finally {
+    isBulkProcessing.value = false;
+  }
+}
+
+function openEditDialog(classItem: ClassItem) {
   selectedClass.value = classItem;
   editDialogVisible.value = true;
 }
@@ -338,24 +442,8 @@ async function onClassSaved() {
   await fetchClasses();
 }
 
-async function fetchPrograms() {
-  try {
-    // Extract unique programs from loaded classes
-    const programMap = new Map<number, Program>();
-    for (const cls of classes.value) {
-      if (cls.program) {
-        programMap.set(cls.program.id, cls.program);
-      }
-    }
-    programs.value = Array.from(programMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  } catch {
-    programs.value = [];
-  }
-}
-
 onMounted(async () => {
-  await fetchActiveCycle();
+  await Promise.all([fetchActiveCycle(), fetchSchools(), fetchPrograms()]);
   await fetchClasses();
-  fetchPrograms();
 });
 </script>

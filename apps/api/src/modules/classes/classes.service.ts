@@ -206,6 +206,29 @@ export class ClassesService {
     return this.auditService.getManualEditLogs('CLASS', classId);
   }
 
+  async getSchools() {
+    return this.prisma.school.findMany({
+      select: {
+        id: true,
+        schoolCode: true,
+        name: true,
+        schoolType: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async getPrograms() {
+    return this.prisma.program.findMany({
+      select: {
+        id: true,
+        name: true,
+        code: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async bulkUpdateInclusion(classIds: number[], isIncluded: boolean) {
     return this.prisma.class.updateMany({
       where: {

@@ -19,6 +19,7 @@ export interface S3StorageConfig {
   endpoint?: string;
   forcePathStyle?: boolean;
   signedUrlExpiresSeconds?: number;
+  tlsRejectUnauthorized?: boolean;
 }
 
 export class S3StorageAdapter implements StorageAdapter {
@@ -27,6 +28,8 @@ export class S3StorageAdapter implements StorageAdapter {
   private bucketReadyPromise: Promise<void>;
 
   constructor(private readonly config: S3StorageConfig) {
+    const rejectUnauthorized = config.tlsRejectUnauthorized ?? true;
+
     this.s3Client = new S3Client({
       region: config.region,
       endpoint: config.endpoint,
@@ -35,6 +38,7 @@ export class S3StorageAdapter implements StorageAdapter {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
       },
+      tls: rejectUnauthorized,
     });
     this.signedUrlExpiresSeconds = config.signedUrlExpiresSeconds ?? 3600;
     this.bucketReadyPromise = this.ensureBucketExists();
@@ -130,6 +134,15 @@ export class S3StorageAdapter implements StorageAdapter {
     try {
       await this.s3Client.send(new HeadBucketCommand({ Bucket: this.config.bucket }));
     } catch (error) {
+      const errCode = typeof error === 'object' && error !== null && 'code' in error
+        ? (error as { code: string }).code
+        : undefined;
+
+      if (errCode === 'SELF_SIGNED_CERT_IN_CHAIN' || errCode === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
+        console.error(`[S3Storage] TLS certificate error connecting to S3/MinIO endpoint (${this.config.endpoint ?? 'default'}). Set AUDIO_S3_TLS_REJECT_UNAUTHORIZED=false to bypass.`, error);
+        throw error;
+      }
+
       const shouldCreate =
         typeof error === 'object'
         && error !== null

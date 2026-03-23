@@ -261,12 +261,13 @@ import ClassNotesModal from '../../components/evaluator/ClassNotesModal.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import AppAutocomplete from '../../components/ui/AppAutocomplete.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
+import { getEnv } from '../../utils/env';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToast();
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = getEnv('VITE_API_URL') || 'http://localhost:3000/api/v1';
 
 const currentUser = computed(() => authStore.user ? {
   firstName: authStore.user.firstName,

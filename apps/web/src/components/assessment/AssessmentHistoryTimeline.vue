@@ -82,6 +82,7 @@
 import { ref, watch } from 'vue';
 import { ChevronRight } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/auth';
+import { getEnv } from '../../utils/env';
 
 const props = defineProps<{
   assessmentId: number;
@@ -89,7 +90,7 @@ const props = defineProps<{
 }>();
 
 const authStore = useAuthStore();
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = getEnv('VITE_API_URL') || 'http://localhost:3000/api/v1';
 
 interface TimelineEntry {
   id: number;

@@ -1,9 +1,10 @@
 import { useAuthStore } from '../stores/auth';
 import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
+import { getEnv } from './env';
 
 const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
+  getEnv('VITE_API_URL') ||
+  getEnv('VITE_API_BASE_URL') ||
   'http://localhost:3000/api/v1';
 
 export interface ApiResponse<T = unknown> {

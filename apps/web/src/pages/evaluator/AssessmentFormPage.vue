@@ -424,12 +424,13 @@ import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import AssessmentHistoryTimeline from '../../components/assessment/AssessmentHistoryTimeline.vue';
 import AudioRecorder from '../../components/audio/AudioRecorder.vue';
+import { getEnv } from '../../utils/env';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToast();
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = getEnv('VITE_API_URL') || 'http://localhost:3000/api/v1';
 
 // User info
 const currentUser = computed(() => authStore.user ? {

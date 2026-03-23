@@ -23,6 +23,7 @@ export function createStorageAdapter(): StorageAdapter {
       endpoint: process.env.AUDIO_S3_ENDPOINT,
       forcePathStyle: (process.env.AUDIO_S3_FORCE_PATH_STYLE || 'false') === 'true',
       signedUrlExpiresSeconds: parseInt(process.env.AUDIO_S3_SIGNED_URL_EXPIRES_SECONDS || '3600', 10),
+      tlsRejectUnauthorized: process.env.AUDIO_S3_TLS_REJECT_UNAUTHORIZED !== 'false',
     });
   }
 

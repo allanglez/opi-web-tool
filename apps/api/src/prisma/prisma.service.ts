@@ -20,7 +20,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+    } catch (error: any) {
+      if (error?.code === 'SELF_SIGNED_CERT_IN_CHAIN' || error?.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
+        console.error(`[PrismaService] TLS certificate error connecting to database (${process.env.DB_HOST}). Check DB_ENCRYPT / DB_TRUST_CERT env vars.`, error);
+      }
+      throw error;
+    }
   }
 
   async onModuleDestroy() {

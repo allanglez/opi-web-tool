@@ -2,10 +2,11 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
 import { getAuth0AccessToken, logoutWithAuth0 } from '../auth/auth0';
+import { getEnv } from '../utils/env';
 
 const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
+  getEnv('VITE_API_URL') ||
+  getEnv('VITE_API_BASE_URL') ||
   'http://localhost:3000/api/v1';
 
 export interface User {

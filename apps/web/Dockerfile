@@ -33,5 +33,13 @@ COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 # Add custom nginx config for SPA fallback routes
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
+# Entrypoint generates env-config.js from K8s environment variables at startup
+COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
+
+USER root
+RUN chmod +x /docker-entrypoint.sh
+USER nginx
+
 EXPOSE 8080
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

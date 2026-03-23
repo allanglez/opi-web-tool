@@ -183,9 +183,10 @@ import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';
+import { getEnv } from '../../utils/env';
 
 const authStore = useAuthStore();
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = getEnv('VITE_API_URL') || 'http://localhost:3000/api/v1';
 
 const currentUser = computed(() => authStore.user ? {
   firstName: authStore.user.firstName,

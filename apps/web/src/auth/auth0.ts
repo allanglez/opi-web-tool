@@ -7,15 +7,16 @@ import {
   type RedirectLoginOptions,
 } from '@auth0/auth0-vue';
 import { isAuth0Mode } from './mode';
+import { getEnv } from '../utils/env';
 
 let auth0Plugin: Auth0Plugin | null = null;
 
 function requiredEnv(name: string): string {
-  const value = import.meta.env[name];
+  const value = getEnv(name);
   if (!value) {
     throw new Error(`Missing required auth env var: ${name}`);
   }
-  return value as string;
+  return value;
 }
 
 export function installAuth0(app: App): Auth0VueClient | null {
@@ -31,7 +32,7 @@ export function installAuth0(app: App): Auth0VueClient | null {
   const clientId = requiredEnv('VITE_AUTH0_CLIENT_ID');
   const audience = requiredEnv('VITE_AUTH0_AUDIENCE');
   const redirectUri =
-    (import.meta.env.VITE_AUTH0_REDIRECT_URI as string | undefined) ||
+    getEnv('VITE_AUTH0_REDIRECT_URI') ||
     `${window.location.origin}/auth/callback`;
 
   auth0Plugin = createAuth0({

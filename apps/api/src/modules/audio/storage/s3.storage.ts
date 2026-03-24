@@ -9,6 +9,8 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import https from 'https';
+import http from 'http';
 import { Readable } from 'stream';
 import { StorageAdapter } from './storage.interface';
 
@@ -31,7 +33,7 @@ export class S3StorageAdapter implements StorageAdapter {
   constructor(private readonly config: S3StorageConfig) {
     const rejectUnauthorized = config.tlsRejectUnauthorized ?? true;
 
-    this.s3Client = new S3Client({
+    const clientConfig: ConstructorParameters<typeof S3Client>[0] = {
       region: config.region,
       endpoint: config.endpoint,
       forcePathStyle: config.forcePathStyle,
@@ -39,8 +41,17 @@ export class S3StorageAdapter implements StorageAdapter {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
       },
-      tls: rejectUnauthorized,
-    });
+    };
+
+    if (!rejectUnauthorized) {
+      const { NodeHttpHandler } = require('@smithy/node-http-handler');
+      clientConfig.requestHandler = new NodeHttpHandler({
+        httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+        httpAgent: new http.Agent(),
+      });
+    }
+
+    this.s3Client = new S3Client(clientConfig);
     this.signedUrlExpiresSeconds = config.signedUrlExpiresSeconds ?? 3600;
     this.bucketReadyPromise = this.ensureBucketExists();
   }

@@ -184,95 +184,8 @@
           </BaseCard>
         </div>
 
-        <!-- Data Warehouse Section -->
-        <BaseCard class="mb-8">
-          <h2 class="text-xl font-semibold text-neutral-900 mb-1">Data Warehouse</h2>
-          <p class="text-sm text-neutral-600 mb-4">
-            The data warehouse pushes student/class data into a staging area. When ready, trigger seeding to populate the cycle.
-          </p>
-
-          <div v-if="isLoadingWarehouse" class="flex items-center gap-2 text-neutral-500 py-4">
-            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-neutral-500" />
-            <span class="text-sm">Checking staging data...</span>
-          </div>
-
-          <template v-else>
-            <!-- No staging data -->
-            <div v-if="!warehouseBatch" class="bg-neutral-50 rounded-lg p-6 text-center">
-              <p class="text-neutral-500 mb-1">No staging data available.</p>
-              <p class="text-sm text-neutral-400">
-                The data warehouse has not pushed any data yet. When data is sent via
-                <code class="bg-neutral-200 px-1 rounded text-xs">PUT /data-warehouse/push</code>,
-                it will appear here.
-              </p>
-            </div>
-
-            <!-- Staging data exists -->
-            <div v-else>
-              <div class="rounded-lg border border-neutral-200 divide-y divide-neutral-200">
-                <div class="p-4 flex items-center justify-between">
-                  <div>
-                    <span class="text-sm font-medium text-neutral-900">Batch #{{ warehouseBatch.batchId }}</span>
-                    <span class="mx-2 text-neutral-300">|</span>
-                    <span class="text-sm text-neutral-600">{{ warehouseBatch.recordCount.toLocaleString() }} records</span>
-                    <span class="mx-2 text-neutral-300">|</span>
-                    <span class="text-sm text-neutral-600">Year: {{ warehouseBatch.targetYear }}</span>
-                  </div>
-                  <span
-                    class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                    :class="warehouseStatusClasses[warehouseBatch.status] || 'bg-neutral-100 text-neutral-700'"
-                  >
-                    {{ warehouseBatch.status }}
-                  </span>
-                </div>
-                <div class="p-4 text-sm text-neutral-500">
-                  Received: {{ formatDateTime(warehouseBatch.receivedAt) }}
-                  <template v-if="warehouseBatch.seededAt">
-                    &bull; Seeded: {{ formatDateTime(warehouseBatch.seededAt) }}
-                  </template>
-                </div>
-                <div v-if="warehouseBatch.errorMessage" class="p-4 bg-red-50 text-sm text-red-700">
-                  {{ warehouseBatch.errorMessage }}
-                </div>
-              </div>
-
-              <!-- Seed button -->
-              <div v-if="warehouseBatch.status === 'PENDING'" class="mt-4">
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <p class="text-sm text-blue-800">
-                    <strong>Ready to seed.</strong> This will deactivate any current cycle,
-                    create a new one for year {{ warehouseBatch.targetYear }}, and import all
-                    {{ warehouseBatch.recordCount.toLocaleString() }} records (schools, teachers,
-                    students, classes, and enrollments).
-                  </p>
-                </div>
-                <button
-                  :disabled="isSeeding"
-                  class="px-5 py-2 bg-yukon-navy text-white rounded-md hover:bg-[#122937] disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors font-semibold text-sm"
-                  @click="handleSeed"
-                >
-                  {{ isSeeding ? 'Seeding...' : 'Seed Data from Staging' }}
-                </button>
-              </div>
-
-              <!-- Seed results -->
-              <div v-if="seedResult" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
-                <p class="font-semibold text-green-800 mb-2">Seeding Complete</p>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-green-700">
-                  <div>Schools: {{ seedResult.summary.schools }}</div>
-                  <div>Programs: {{ seedResult.summary.programs }}</div>
-                  <div>Teachers: {{ seedResult.summary.teachers }}</div>
-                  <div>Students: {{ seedResult.summary.students }}</div>
-                  <div>Classes: {{ seedResult.summary.classes }}</div>
-                  <div>Enrollments: {{ seedResult.summary.enrollments }}</div>
-                </div>
-              </div>
-            </div>
-          </template>
-        </BaseCard>
-
-        <!-- Reset Cycle Section -->
-        <BaseCard class="mb-8 border-red-200">
+                <!-- Reset Cycle Section -->
+                <BaseCard class="mb-8 border-red-200">
           <h2 class="text-xl font-semibold text-neutral-900 mb-1">Reset Cycle</h2>
           <p class="text-sm text-neutral-600 mb-4">
             Purge all records for the active cycle. This is irreversible.
@@ -333,6 +246,99 @@
             </button>
           </div>
         </BaseCard>
+
+        <!-- Data Warehouse Section -->
+        <BaseCard class="mb-8">
+          <h2 class="text-xl font-semibold text-neutral-900 mb-1">Data Warehouse</h2>
+          <p class="text-sm text-neutral-600 mb-4">
+            The data warehouse pushes student/class data into a staging area. When ready, trigger seeding to populate the cycle.
+          </p>
+
+          <div v-if="isLoadingWarehouse" class="flex items-center gap-2 text-neutral-500 py-4">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-neutral-500" />
+            <span class="text-sm">Checking staging data...</span>
+          </div>
+
+          <template v-else>
+            <!-- No staging data -->
+            <div v-if="!warehouseBatch" class="bg-neutral-50 rounded-lg p-6 text-center">
+              <p class="text-neutral-500 mb-1">No staging data available.</p>
+              <p class="text-sm text-neutral-400">
+                The data warehouse has not pushed any data yet. When data is sent via
+                <code class="bg-neutral-200 px-1 rounded text-xs">PUT /data-warehouse/push</code>,
+                it will appear here.
+              </p>
+            </div>
+
+            <!-- Staging data exists -->
+            <div v-else>
+              <div class="rounded-lg border border-neutral-200 divide-y divide-neutral-200">
+                <div class="p-4 flex items-center justify-between">
+                  <div>
+                    <span class="text-sm font-medium text-neutral-900">Batch #{{ warehouseBatch.batchId }}</span>
+                    <span class="mx-2 text-neutral-300">|</span>
+                    <span class="text-sm text-neutral-600">{{ warehouseBatch.recordCount.toLocaleString() }} records</span>
+                    <span class="mx-2 text-neutral-300">|</span>
+                    <span class="text-sm text-neutral-600">Year: {{ warehouseBatch.targetYear }}</span>
+                  </div>
+                  <span
+                    class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                    :class="warehouseStatusClasses[warehouseBatch.status] || 'bg-neutral-100 text-neutral-700'"
+                  >
+                    {{ warehouseBatch.status }}
+                  </span>
+                </div>
+                <div class="p-4 text-sm text-neutral-500">
+                  Received: {{ formatDateTime(warehouseBatch.receivedAt) }}
+                  <template v-if="warehouseBatch.seededAt">
+                    &bull; Seeded: {{ formatDateTime(warehouseBatch.seededAt) }}
+                  </template>
+                </div>
+                <div v-if="warehouseBatch.errorMessage" class="p-4 bg-red-50 text-sm text-red-700">
+                  {{ warehouseBatch.errorMessage }}
+                </div>
+              </div>
+
+              <!-- Seed button -->
+              <div v-if="warehouseBatch.status === 'PENDING'" class="mt-4">
+                <div v-if="activeCycle" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                  <p class="text-sm text-amber-800">
+                    <strong>Reset required.</strong> An active cycle already exists. Reset the current cycle before seeding new data.
+                  </p>
+                </div>
+                <div v-else class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p class="text-sm text-blue-800">
+                    <strong>Ready to seed.</strong> This will create a new cycle for year
+                    {{ warehouseBatch.targetYear }} and import all
+                    {{ warehouseBatch.recordCount.toLocaleString() }} records (schools, teachers,
+                    students, classes, and enrollments).
+                  </p>
+                </div>
+                <button
+                  :disabled="isSeeding || !!activeCycle"
+                  class="px-5 py-2 bg-yukon-navy text-white rounded-md hover:bg-[#122937] disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors font-semibold text-sm"
+                  @click="handleSeed"
+                >
+                  {{ isSeeding ? 'Seeding...' : 'Seed Data from Staging' }}
+                </button>
+              </div>
+
+              <!-- Seed results -->
+              <div v-if="seedResult" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <p class="font-semibold text-green-800 mb-2">Seeding Complete</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-green-700">
+                  <div>Schools: {{ seedResult.summary.schools }}</div>
+                  <div>Programs: {{ seedResult.summary.programs }}</div>
+                  <div>Teachers: {{ seedResult.summary.teachers }}</div>
+                  <div>Students: {{ seedResult.summary.students }}</div>
+                  <div>Classes: {{ seedResult.summary.classes }}</div>
+                  <div>Enrollments: {{ seedResult.summary.enrollments }}</div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </BaseCard>
+
       </template>
 
       <!-- Error -->

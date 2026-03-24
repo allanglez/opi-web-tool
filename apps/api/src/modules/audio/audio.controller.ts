@@ -32,6 +32,7 @@ export class AudioController {
     }
 
     const buffer = await data.toBuffer();
+    console.log(`[AudioUpload] Received file: ${data.filename}, mimetype: ${data.mimetype}, buffer size: ${buffer.length} bytes`);
     const file = {
       buffer,
       originalname: data.filename,

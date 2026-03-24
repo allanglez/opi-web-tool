@@ -135,7 +135,7 @@ import { ChevronLeft, Lock, Pencil } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import { useToast } from '../../composables/useToast';
-import { api, ApiError } from '../../utils/api';
+import { api } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';

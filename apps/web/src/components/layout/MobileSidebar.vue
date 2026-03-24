@@ -75,6 +75,16 @@ const routeNamespace = computed<'admin' | 'coordinator' | 'evaluator'>(() => {
   const name = String(route.name || '');
   if (name.startsWith('admin-')) return 'admin';
   if (name.startsWith('coordinator-')) return 'coordinator';
+  if (name.startsWith('evaluator-')) {
+    // For shared evaluator pages (e.g. assessment form accessed by admin/coordinator),
+    // check the source query param or fall back to role
+    const from = route.query.from as string | undefined;
+    if (from === 'admin-verification' && authStore.isAdmin) return 'admin';
+    if (from === 'coordinator-verification' && authStore.isCoordinator) return 'coordinator';
+    if (authStore.isAdmin) return 'admin';
+    if (authStore.isCoordinator) return 'coordinator';
+  }
+
   return 'evaluator';
 });
 
@@ -88,6 +98,7 @@ const adminTabs = computed(() => {
     { name: 'admin-class-view', label: 'Class View', adminOnly: false },
     { name: 'admin-cycle-classes', label: 'Class Management', adminOnly: true },
     { name: 'admin-students', label: 'Students', adminOnly: true },
+    { name: 'admin-cycle', label: 'Cycle', adminOnly: true },
   ];
   return all
     .filter((tab) => !tab.adminOnly || authStore.isAdmin)

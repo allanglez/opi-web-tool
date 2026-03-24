@@ -58,7 +58,13 @@ const checkApprovalStatus = async () => {
   try {
     const cycle = await api.get<{ isApproved: boolean }>('/cycles/active');
     if (cycle.isApproved) {
-      router.push('/admin/dashboard');
+      if (authStore.isAdmin) {
+        router.push('/admin/dashboard');
+      } else if (authStore.isCoordinator) {
+        router.push('/coordinator/dashboard');
+      } else {
+        router.push('/evaluator/dashboard');
+      }
     } else {
       toast.error('Cycle is still not approved. Please check back later.');
     }

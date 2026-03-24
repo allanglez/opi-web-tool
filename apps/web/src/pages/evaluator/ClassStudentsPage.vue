@@ -15,6 +15,9 @@
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
     </div>
 
+    <!-- No Cycle Notice -->
+    <NoCycleNotice v-else-if="noCycle" />
+
     <!-- Error State -->
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <p class="text-red-800">{{ error }}</p>
@@ -132,13 +135,14 @@ import { ChevronLeft, Lock, Pencil } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import { useToast } from '../../composables/useToast';
-import { api } from '../../utils/api';
+import { api, ApiError } from '../../utils/api';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
 
@@ -189,6 +193,7 @@ const classViewRoute = computed(() => {
 // State
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 const startingId = ref<number | null>(null);
 
 interface StudentWithAssessment {
@@ -322,7 +327,7 @@ async function fetchStudents() {
       return;
     }
     if (message.includes('CYCLE_NOT_APPROVED')) {
-      router.push('/cycle-not-approved');
+      noCycle.value = true;
       return;
     }
     error.value = message;

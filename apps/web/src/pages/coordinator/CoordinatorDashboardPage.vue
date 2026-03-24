@@ -11,6 +11,8 @@
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900" />
     </div>
 
+    <NoCycleNotice v-else-if="noCycle" />
+
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <p class="text-red-800">{{ error }}</p>
       <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchData">Retry</button>
@@ -157,6 +159,8 @@ import AppShell from '../../components/layout/AppShell.vue';
 import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
+import { ApiError } from '../../utils/api';
 
 const authStore = useAuthStore();
 
@@ -208,6 +212,7 @@ const currentUser = computed(() =>
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 const stats = ref({ totalSchools: 0, assignedSchools: 0, unassignedSchools: 0 });
 const unassignedSchools = ref<UnassignedSchool[]>([]);
 const evaluatorStatus = ref<EvaluatorStatus[]>([]);
@@ -224,7 +229,11 @@ async function fetchData() {
     evaluatorStatus.value = response.evaluatorStatus ?? [];
     upcomingDates.value = response.upcomingDates ?? [];
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'An error occurred';
+    if (err instanceof ApiError && err.code === 'CYCLE_NOT_APPROVED') {
+      noCycle.value = true;
+    } else {
+      error.value = err instanceof Error ? err.message : 'An error occurred';
+    }
   } finally {
     isLoading.value = false;
   }

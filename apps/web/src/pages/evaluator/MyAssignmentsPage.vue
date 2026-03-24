@@ -6,6 +6,9 @@
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
     </div>
 
+    <!-- No Cycle Notice -->
+    <NoCycleNotice v-else-if="noCycle" />
+
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 mt-6">
       <p class="text-red-800">{{ error }}</p>
       <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchAssignments">Retry</button>
@@ -156,6 +159,7 @@ import StatCard from '../../components/ui/StatCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
 import type { DataTableColumn } from '../../components/ui/data-table/types';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import { getEnv } from '../../utils/env';
 
 const route = useRoute();
@@ -172,6 +176,7 @@ const currentUser = computed(() => authStore.user ? {
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 const selectedSchoolId = ref<number | null>(null);
 
 interface StudentRow {
@@ -351,7 +356,7 @@ async function fetchAssignments() {
     if (res.status === 403) {
       const err = await res.json();
       if (err.error === 'CYCLE_NOT_APPROVED') {
-        window.location.href = '/cycle-not-approved';
+        noCycle.value = true;
         return;
       }
     }

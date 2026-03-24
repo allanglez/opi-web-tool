@@ -11,6 +11,9 @@
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
     </div>
 
+    <!-- No Cycle Notice -->
+    <NoCycleNotice v-else-if="noCycle" />
+
     <!-- Error State -->
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 mt-6">
       <p class="text-red-800">{{ error }}</p>
@@ -172,6 +175,7 @@ import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import StatCard from '../../components/ui/StatCard.vue';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import { getEnv } from '../../utils/env';
 
 const route = useRoute();
@@ -188,6 +192,7 @@ const currentUser = computed(() => authStore.user ? {
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 
 interface DashboardData {
   cycle: { id: number; name: string };
@@ -309,7 +314,7 @@ async function fetchDashboard() {
     if (res.status === 403) {
       const err = await res.json();
       if (err.error === 'CYCLE_NOT_APPROVED') {
-        window.location.href = '/cycle-not-approved';
+        noCycle.value = true;
         return;
       }
     }

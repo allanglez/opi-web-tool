@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Param,
   Patch,
   Post,
   Query,
@@ -12,6 +13,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { RetentionService } from './retention.service';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Retention')
 @ApiBearerAuth('access-token')
@@ -49,15 +51,29 @@ export class RetentionController {
   }
 
   /**
+   * GET /admin/reset/summary/:cycleId
+   * Get pre-purge summary with counts and whether purge is allowed.
+   */
+  @Get('admin/reset/summary/:cycleId')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Get pre-purge summary with record counts and validation' })
+  async getPrePurgeSummary(@Param('cycleId', ParseIntPipe) cycleId: number) {
+    return this.retentionService.getPrePurgeSummary(cycleId);
+  }
+
+  /**
    * POST /admin/reset
-   * Start an annual reset: export then purge cycle data.
+   * Start an annual reset: purge cycle data.
    */
   @Post('admin/reset')
   @Roles('ADMIN')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Start an annual data reset: export and purge cycle data' })
-  async startReset(@Body('cycleId', ParseIntPipe) cycleId: number) {
-    return this.retentionService.startReset(cycleId);
+  @ApiOperation({ summary: 'Start an annual data reset: purge cycle data' })
+  async startReset(
+    @Body('cycleId', ParseIntPipe) cycleId: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.retentionService.startReset(cycleId, user.id);
   }
 
   /**

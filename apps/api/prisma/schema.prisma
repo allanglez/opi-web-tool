@@ -41,6 +41,7 @@ model User {
   flaggedReviews         AssessmentReviewFlag[] @relation("FlaggedBy")
   resolvedReviews        AssessmentReviewFlag[] @relation("ResolvedBy")
   manualEdits            ManualEditAuditLog[]   @relation("ManualEditChanger")
+  systemAuditLogs        SystemAuditLog[]
 
   @@index([isActive])
   @@map("users")
@@ -445,4 +446,67 @@ model AssessmentReviewFlag {
   @@index([flaggedBy])
   @@index([resolvedAt])
   @@map("assessment_review_flags")
+}
+
+model DataWarehouseBatch {
+  id           Int       @id @default(autoincrement())
+  status       String    @default("PENDING") @db.NVarChar(20) // PENDING, SEEDING, SEEDED, FAILED
+  recordCount  Int       @map("record_count")
+  targetYear   Int       @map("target_year")
+  receivedAt   DateTime  @default(now()) @map("received_at") @db.DateTime2
+  seededAt     DateTime? @map("seeded_at") @db.DateTime2
+  errorMessage String?   @map("error_message") @db.NVarChar(Max)
+
+  records DataWarehouseStagingRecord[]
+
+  @@index([status])
+  @@map("data_warehouse_batches")
+}
+
+model DataWarehouseStagingRecord {
+  id                 Int    @id @default(autoincrement())
+  batchId            Int    @map("batch_id")
+  opiType            String @map("opi_type") @db.NVarChar(100)
+  schoolNumber       String @map("school_number") @db.NVarChar(50)
+  schoolName         String @map("school_name") @db.NVarChar(255)
+  schoolType         String? @map("school_type") @db.NVarChar(50)
+  schoolYear         Int    @map("school_year")
+  studentNumber      String @map("student_number") @db.NVarChar(50)
+  pen                String? @db.NVarChar(50)
+  studentLastName    String @map("student_last_name") @db.NVarChar(100)
+  studentFirstName   String @map("student_first_name") @db.NVarChar(100)
+  studentMiddleName  String? @map("student_middle_name") @db.NVarChar(100)
+  grade              Int
+  course             String @db.NVarChar(50)
+  courseTitle         String @map("course_title") @db.NVarChar(255)
+  teacherId          String @map("teacher_id") @db.NVarChar(50)
+  teacherName        String @map("teacher_name") @db.NVarChar(255)
+  semesterTerm       String @map("semester_term") @db.NVarChar(10)
+  programCode        String @map("program_code") @db.NVarChar(50)
+  programDescription String @map("program_description") @db.NVarChar(255)
+
+  batch DataWarehouseBatch @relation(fields: [batchId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([batchId])
+  @@map("data_warehouse_staging_records")
+}
+
+model SystemAuditLog {
+  id                Int      @id @default(autoincrement())
+  action            String   @db.NVarChar(50)
+  cycleId           Int?     @map("cycle_id")
+  cycleName         String?  @map("cycle_name") @db.NVarChar(100)
+  cycleYear         Int?     @map("cycle_year")
+  performedBy       Int      @map("performed_by")
+  purgedAssessments Int?     @map("purged_assessments")
+  purgedStudents    Int?     @map("purged_students")
+  purgedAudioFiles  Int?     @map("purged_audio_files")
+  details           String?  @db.NVarChar(Max)
+  performedAt       DateTime @default(now()) @map("performed_at") @db.DateTime2
+
+  performer User @relation(fields: [performedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([action])
+  @@index([performedAt])
+  @@map("system_audit_log")
 }

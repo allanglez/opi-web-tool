@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCycleDto } from './dto/create-cycle.dto';
+import { UpdateCycleDto } from './dto/update-cycle.dto';
 
 @Injectable()
 export class CyclesService {
@@ -55,6 +56,34 @@ export class CyclesService {
         endsOn,
         isActive: true,
       },
+    });
+  }
+
+  async updateCycle(cycleId: number, dto: UpdateCycleDto) {
+    const cycle = await this.prisma.assessmentCycle.findUnique({
+      where: { id: cycleId },
+    });
+
+    if (!cycle) {
+      throw new NotFoundException('Cycle not found');
+    }
+
+    if (cycle.dataApprovedAt) {
+      throw new BadRequestException('Cannot edit a cycle that has already been approved');
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.startsOn !== undefined) data.startsOn = new Date(dto.startsOn);
+    if (dto.endsOn !== undefined) data.endsOn = new Date(dto.endsOn);
+
+    if (data.startsOn && data.endsOn && (data.endsOn as Date) <= (data.startsOn as Date)) {
+      throw new BadRequestException('End date must be after start date');
+    }
+
+    return this.prisma.assessmentCycle.update({
+      where: { id: cycleId },
+      data,
     });
   }
 

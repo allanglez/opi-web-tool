@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createStorageAdapter } from '../audio/storage/storage.factory';
 import { StorageAdapter } from '../audio/storage/storage.interface';
-import { ReportsService } from '../reports/reports.service';
+// import { ReportsService } from '../reports/reports.service';
 
 export interface RetentionConfig {
   cycleId: number;
@@ -22,8 +22,22 @@ export interface ResetStatus {
   completedAt?: Date;
   exportedRecords?: number;
   purgedAssessments?: number;
+  purgedStudents?: number;
   purgedAudioFiles?: number;
   error?: string;
+}
+
+export interface PrePurgeSummary {
+  cycleId: number;
+  cycleName: string;
+  students: number;
+  assessments: number;
+  assessmentsInProgress: number;
+  assessmentsNotStarted: number;
+  audioFiles: number;
+  totalRecords: number;
+  canPurge: boolean;
+  blockReason?: string;
 }
 
 @Injectable()
@@ -34,7 +48,7 @@ export class RetentionService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly reportsService: ReportsService,
+    // private readonly reportsService: ReportsService,
   ) {
     this.storageAdapter = createStorageAdapter();
   }
@@ -133,111 +147,173 @@ export class RetentionService {
 
   /**
    * Purge all assessment data and audio files for a given cycle.
+   * Audio files are deleted first — if any fail, the purge aborts before touching the DB.
    */
-  async purgeCycleData(cycleId: number): Promise<{ purgedAssessments: number; purgedAudioFiles: number }> {
-    // 1. Get all audio recordings for this cycle's assessments
-    const audioRecordings = await this.prisma.audioRecording.findMany({
-      where: {
-        assessment: { cycleId },
-      },
-      select: {
-        id: true,
-        storageKey: true,
-      },
-    });
-
-    // 2. Delete audio files from storage
+  async purgeCycleData(cycleId: number): Promise<{ purgedAssessments: number; purgedAudioFiles: number; purgedStudents: number }> {
+    // 1. Delete ALL files from storage (catches orphans too)
+    const allKeys = await this.storageAdapter.listObjects();
     let purgedAudioFiles = 0;
-    for (const recording of audioRecordings) {
-      try {
-        await this.storageAdapter.deleteObject(recording.storageKey);
-        purgedAudioFiles++;
-      } catch (error) {
-        this.logger.warn(`Failed to delete audio file ${recording.storageKey}: ${error}`);
-      }
+
+    for (const key of allKeys) {
+      // Skip export files — those are intentional backups
+      if (key.startsWith('exports/')) continue;
+
+      await this.storageAdapter.deleteObject(key);
+      purgedAudioFiles++;
     }
 
-    // 3. Delete database records in correct order (respecting FK constraints)
+    this.logger.log(`Deleted ${purgedAudioFiles} files from storage`);
+
+    // 2. Delete database records in correct order (respecting FK constraints)
     const purgeResult = await this.prisma.$transaction(async (tx) => {
-      // Delete audio recording DB records
+      // Audio recording DB records
       await tx.audioRecording.deleteMany({
         where: { assessment: { cycleId } },
       });
 
-      // Delete assessment audit logs
+      // Assessment audit logs
       await tx.assessmentAuditLog.deleteMany({
         where: { assessment: { cycleId } },
       });
 
-      // Delete assessment notes
+      // Assessment notes
       await tx.assessmentNote.deleteMany({
         where: { assessment: { cycleId } },
       });
 
-      // Delete assessment criteria results
+      // Assessment criteria results
       await tx.assessmentCriteriaResult.deleteMany({
         where: { assessment: { cycleId } },
       });
 
-      // Delete assessment scores
+      // Assessment scores
       await tx.assessmentScore.deleteMany({
         where: { assessment: { cycleId } },
       });
 
-      // Delete assessments
+      // Assessment review flags (cascade from assessment, but explicit for clarity)
+      await tx.assessmentReviewFlag.deleteMany({
+        where: { assessment: { cycleId } },
+      });
+
+      // Assessments
       const deletedAssessments = await tx.assessment.deleteMany({
         where: { cycleId },
       });
 
-      // Delete class notes for classes in this cycle
+      // Class submissions (must come after assessments, before classes)
+      await tx.classSubmission.deleteMany({
+        where: { class: { cycleId } },
+      });
+
+      // Class notes
       await tx.classNote.deleteMany({
         where: { class: { cycleId } },
       });
 
-      // Delete evaluator assignments
+      // Evaluator assignments
       await tx.evaluatorAssignment.deleteMany({
         where: { cycleId },
       });
 
-      // Delete school assessment dates
+      // School assessment dates
       await tx.schoolAssessmentDate.deleteMany({
         where: { cycleId },
       });
 
-      // Delete class-student enrollments for this cycle
+      // Class-student enrollments
       await tx.classStudent.deleteMany({
         where: { class: { cycleId } },
       });
 
-      // Delete students for this cycle
-      await tx.student.deleteMany({
+      // Students
+      const deletedStudents = await tx.student.deleteMany({
         where: { cycleId },
       });
 
-      // Delete classes for this cycle
+      // Classes
       await tx.class.deleteMany({
         where: { cycleId },
       });
 
-      // Delete assessment rounds
+      // Assessment rounds
       await tx.assessmentRound.deleteMany({
         where: { cycleId },
       });
 
-      return { purgedAssessments: deletedAssessments.count };
+      // Data warehouse staging data
+      await tx.dataWarehouseStagingRecord.deleteMany({});
+      await tx.dataWarehouseBatch.deleteMany({});
+
+      return {
+        purgedAssessments: deletedAssessments.count,
+        purgedStudents: deletedStudents.count,
+      };
     });
 
     return {
       purgedAssessments: purgeResult.purgedAssessments,
+      purgedStudents: purgeResult.purgedStudents,
       purgedAudioFiles,
     };
   }
 
   /**
-   * Annual reset: export data, then purge the cycle.
+   * Get a pre-purge summary with counts and whether purge is allowed.
+   */
+  async getPrePurgeSummary(cycleId: number): Promise<PrePurgeSummary> {
+    const cycle = await this.prisma.assessmentCycle.findUnique({
+      where: { id: cycleId },
+    });
+
+    if (!cycle) {
+      throw new NotFoundException('Cycle not found');
+    }
+
+    const [
+      students,
+      assessments,
+      assessmentsInProgress,
+      assessmentsNotStarted,
+      audioFiles,
+      classes,
+      enrollments,
+      evaluatorAssignments,
+    ] = await this.prisma.$transaction([
+      this.prisma.student.count({ where: { cycleId } }),
+      this.prisma.assessment.count({ where: { cycleId } }),
+      this.prisma.assessment.count({ where: { cycleId, status: 'IN_PROGRESS' } }),
+      this.prisma.assessment.count({ where: { cycleId, status: 'NOT_STARTED' } }),
+      this.prisma.audioRecording.count({ where: { assessment: { cycleId } } }),
+      this.prisma.class.count({ where: { cycleId } }),
+      this.prisma.classStudent.count({ where: { class: { cycleId } } }),
+      this.prisma.evaluatorAssignment.count({ where: { cycleId } }),
+    ]);
+
+    const totalRecords = students + assessments + audioFiles + classes + enrollments + evaluatorAssignments;
+    const hasBlockingAssessments = assessmentsInProgress > 0;
+
+    return {
+      cycleId: cycle.id,
+      cycleName: cycle.name,
+      students,
+      assessments,
+      assessmentsInProgress,
+      assessmentsNotStarted,
+      audioFiles,
+      totalRecords,
+      canPurge: !hasBlockingAssessments,
+      blockReason: hasBlockingAssessments
+        ? `${assessmentsInProgress} assessment(s) are still in progress. All assessments must be completed or submitted before reset.`
+        : undefined,
+    };
+  }
+
+  /**
+   * Annual reset: purge the cycle.
    * Runs asynchronously — caller polls GET /admin/reset/status.
    */
-  async startReset(cycleId: number): Promise<ResetStatus> {
+  async startReset(cycleId: number, userId: number): Promise<ResetStatus> {
     if (this.resetStatus.status === 'exporting' || this.resetStatus.status === 'purging') {
       throw new BadRequestException('A reset operation is already in progress');
     }
@@ -250,16 +326,22 @@ export class RetentionService {
       throw new NotFoundException('Cycle not found');
     }
 
+    // Pre-purge validation
+    const summary = await this.getPrePurgeSummary(cycleId);
+    if (!summary.canPurge) {
+      throw new BadRequestException(summary.blockReason);
+    }
+
     // Initialize status
     this.resetStatus = {
-      status: 'exporting',
+      status: 'purging',
       cycleId: cycle.id,
       cycleName: cycle.name,
       startedAt: new Date(),
     };
 
     // Run async — don't await
-    this.executeReset(cycleId).catch((error) => {
+    this.executeReset(cycleId, userId, cycle.name, cycle.year).catch((error) => {
       this.logger.error(`Reset failed for cycle ${cycleId}: ${error}`);
       this.resetStatus = {
         ...this.resetStatus,
@@ -271,35 +353,34 @@ export class RetentionService {
     return this.resetStatus;
   }
 
-  private async executeReset(cycleId: number) {
+  private async executeReset(cycleId: number, userId: number, cycleName: string, cycleYear: number) {
     try {
-      // Phase 1: Export
-      this.resetStatus.status = 'exporting';
-      this.logger.log(`Reset: exporting data for cycle ${cycleId}...`);
-
-      const exportData = await this.reportsService.getProgressReport({ cycleId });
-      this.resetStatus.exportedRecords = exportData.length;
-
-      // Store export as JSON file in storage
-      const exportJson = JSON.stringify(exportData, null, 2);
-      const exportKey = `exports/cycle-${cycleId}-reset-${Date.now()}.json`;
-      await this.storageAdapter.putObject(
-        exportKey,
-        Buffer.from(exportJson, 'utf-8'),
-        'application/json',
-      );
-      this.logger.log(`Reset: exported ${exportData.length} records to ${exportKey}`);
-
-      // Phase 2: Purge
       this.resetStatus.status = 'purging';
       this.logger.log(`Reset: purging data for cycle ${cycleId}...`);
 
       const purgeResult = await this.purgeCycleData(cycleId);
 
-      // Phase 3: Deactivate cycle
+      // Deactivate cycle
       await this.prisma.assessmentCycle.update({
         where: { id: cycleId },
         data: { isActive: false },
+      });
+
+      // Write non-purgeable audit log
+      await this.prisma.systemAuditLog.create({
+        data: {
+          action: 'CYCLE_RESET',
+          cycleId,
+          cycleName,
+          cycleYear,
+          performedBy: userId,
+          purgedAssessments: purgeResult.purgedAssessments,
+          purgedStudents: purgeResult.purgedStudents,
+          purgedAudioFiles: purgeResult.purgedAudioFiles,
+          details: JSON.stringify({
+            completedAt: new Date().toISOString(),
+          }),
+        },
       });
 
       // Done
@@ -308,11 +389,12 @@ export class RetentionService {
         status: 'completed',
         completedAt: new Date(),
         purgedAssessments: purgeResult.purgedAssessments,
+        purgedStudents: purgeResult.purgedStudents,
         purgedAudioFiles: purgeResult.purgedAudioFiles,
       };
 
       this.logger.log(
-        `Reset completed for cycle ${cycleId}: ${purgeResult.purgedAssessments} assessments, ${purgeResult.purgedAudioFiles} audio files purged`,
+        `Reset completed for cycle ${cycleId}: ${purgeResult.purgedAssessments} assessments, ${purgeResult.purgedStudents} students, ${purgeResult.purgedAudioFiles} audio files purged`,
       );
     } catch (error) {
       this.resetStatus = {

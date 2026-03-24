@@ -6,6 +6,8 @@
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
     </div>
 
+    <NoCycleNotice v-else-if="noCycle" />
+
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 mt-6">
       <p class="text-red-800">{{ error }}</p>
       <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchClassView">Retry</button>
@@ -254,6 +256,7 @@ import { useToast } from '../../composables/useToast';
 import AppShell from '../../components/layout/AppShell.vue';
 import EvaluatorSubNav from '../../components/layout/EvaluatorSubNav.vue';
 import CoordinatorSubNav from '../../components/layout/CoordinatorSubNav.vue';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import ProgressBar from '../../components/ui/ProgressBar.vue';
@@ -277,6 +280,7 @@ const currentUser = computed(() => authStore.user ? {
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 const selectedSchoolId = ref<number | null>(null);
 const selectedClassId = ref<number | null>(null);
 const expandedClasses = ref<Set<number>>(new Set());
@@ -546,7 +550,7 @@ async function fetchClassView() {
     if (res.status === 403) {
       const err = await res.json();
       if (err.error === 'CYCLE_NOT_APPROVED') {
-        window.location.href = '/cycle-not-approved';
+        noCycle.value = true;
         return;
       }
     }

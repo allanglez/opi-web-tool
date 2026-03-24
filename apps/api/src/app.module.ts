@@ -18,6 +18,7 @@ import { ClassSummaryModule } from './modules/class-summary/class-summary.module
 import { ReportsModule } from './modules/reports/reports.module';
 import { RetentionModule } from './modules/retention/retention.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { DataWarehouseModule } from './modules/data-warehouse/data-warehouse.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { MockAuthGuard } from './common/guards/mock-auth.guard';
 import { ActiveUserGuard } from './common/guards/active-user.guard';
@@ -48,6 +49,7 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     ReportsModule,
     RetentionModule,
     DashboardModule,
+    DataWarehouseModule,
   ],
   controllers: [],
   providers: [

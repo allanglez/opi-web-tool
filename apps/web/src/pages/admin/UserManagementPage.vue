@@ -5,7 +5,7 @@
     <div class="mt-8 mb-8 flex items-center justify-between">
       <h1 class="text-3xl font-bold text-neutral-900">User Management</h1>
       <button
-        class="px-4 py-2 bg-neutral-900 text-white text-sm font-semibold rounded border border-neutral-900 hover:bg-neutral-800 transition-colors"
+        class="px-4 py-2 bg-neutral-900 text-white text-sm font-semibold border border-neutral-900 hover:bg-neutral-800 transition-colors"
         @click="showAddModal = true"
       >
         + Add New User
@@ -25,6 +25,9 @@
     <!-- Loading State -->
     <LoadingState v-if="isLoading" />
 
+    <!-- No Cycle Notice -->
+    <NoCycleNotice v-else-if="noCycle" />
+
     <!-- Error State -->
     <ErrorState v-else-if="error" :message="error" @retry="fetchUsers" />
 
@@ -37,26 +40,26 @@
       <!-- Bulk Actions Bar -->
       <div
         v-if="selectedUserIds.length > 0"
-        class="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md"
+        class="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200"
       >
         <span class="text-sm font-medium text-blue-800">
           {{ selectedUserIds.length }} user{{ selectedUserIds.length !== 1 ? 's' : '' }} selected
         </span>
         <div class="flex gap-2 ml-auto">
           <button
-            class="px-3 py-1.5 text-xs font-semibold border border-neutral-900 text-neutral-900 rounded hover:bg-neutral-100 uppercase tracking-wider"
+            class="px-3 py-1.5 text-xs font-semibold border border-neutral-900 text-neutral-900 hover:bg-neutral-100 uppercase tracking-wider"
             @click="showBulkRoleModal = true"
           >
             Change Role
           </button>
           <button
-            class="px-3 py-1.5 text-xs font-semibold border border-red-400 text-red-600 rounded hover:bg-red-50 uppercase tracking-wider"
+            class="px-3 py-1.5 text-xs font-semibold border border-red-400 text-red-600 hover:bg-red-50 uppercase tracking-wider"
             @click="showBulkDeactivateModal = true"
           >
             Deactivate
           </button>
           <button
-            class="px-3 py-1.5 text-xs font-semibold border border-green-400 text-green-600 rounded hover:bg-green-50 uppercase tracking-wider"
+            class="px-3 py-1.5 text-xs font-semibold border border-green-400 text-green-600 hover:bg-green-50 uppercase tracking-wider"
             @click="bulkActivate"
           >
             Activate
@@ -125,21 +128,21 @@
         <template #cell-actions="{ row }">
           <div class="flex space-x-2">
             <button
-              class="px-3 py-1 text-xs font-semibold border border-neutral-300 rounded hover:bg-neutral-100 transition-colors"
+              class="px-3 py-1 text-xs font-semibold border border-neutral-300 hover:bg-neutral-100 transition-colors"
               @click="openEditModal(asUser(row))"
             >
               EDIT
             </button>
             <button
               v-if="asUser(row).isActive && asUser(row).id !== authStore.user?.id"
-              class="px-3 py-1 text-xs font-semibold border border-red-300 text-red-600 rounded hover:bg-red-50 transition-colors"
+              class="px-3 py-1 text-xs font-semibold border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
               @click="confirmDeactivate(asUser(row))"
             >
               DEACTIVATE
             </button>
             <button
               v-else-if="!asUser(row).isActive"
-              class="px-3 py-1 text-xs font-semibold border border-green-300 text-green-600 rounded hover:bg-green-50 transition-colors"
+              class="px-3 py-1 text-xs font-semibold border border-green-300 text-green-600 hover:bg-green-50 transition-colors"
               @click="activateUser(asUser(row))"
             >
               ACTIVATE
@@ -151,7 +154,7 @@
 
     <!-- Add New User Modal -->
     <div v-if="showAddModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showAddModal = false">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+      <div class="bg-white shadow-xl w-full max-w-lg mx-4">
         <div class="flex items-center justify-between p-6 border-b border-neutral-200">
           <h2 class="text-lg font-bold text-neutral-900 uppercase tracking-wide">Add New User</h2>
           <button class="text-red-500 hover:text-red-700 border border-red-300 rounded w-7 h-7 flex items-center justify-center" @click="showAddModal = false">
@@ -257,13 +260,13 @@
         </div>
         <div class="flex items-center justify-between p-6 border-t border-neutral-200">
           <button
-            class="px-4 py-2 text-sm font-semibold text-neutral-700 border border-neutral-300 rounded hover:bg-neutral-100 transition-colors"
+            class="px-4 py-2 text-sm font-semibold text-neutral-700 border border-neutral-300 hover:bg-neutral-100 transition-colors"
             @click="showEditModal = false"
           >
             CANCEL
           </button>
           <button
-            class="px-4 py-2 text-sm font-semibold text-white bg-neutral-900 border border-neutral-900 rounded hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            class="px-4 py-2 text-sm font-semibold text-white bg-neutral-900 border border-neutral-900 hover:bg-neutral-800 transition-colors disabled:opacity-50"
             :disabled="!canEditUser || isEditing"
             @click="updateUser"
           >
@@ -309,7 +312,7 @@
             Are you sure you want to deactivate <strong>{{ bulkDeactivatableUsers.length }}</strong> user{{ bulkDeactivatableUsers.length !== 1 ? 's' : '' }}?
             They will no longer be able to access the system.
           </p>
-          <div v-if="bulkDeactivatableUsers.length > 0" class="max-h-40 overflow-y-auto border border-neutral-200 rounded-md">
+          <div v-if="bulkDeactivatableUsers.length > 0" class="max-h-40 overflow-y-auto border border-neutral-200">
             <div
               v-for="u in bulkDeactivatableUsers"
               :key="u.id"
@@ -324,13 +327,13 @@
         </div>
         <div class="flex items-center justify-end space-x-3 p-6 border-t border-neutral-200">
           <button
-            class="px-4 py-2 text-sm font-semibold text-neutral-700 border border-neutral-300 rounded hover:bg-neutral-100 transition-colors"
+            class="px-4 py-2 text-sm font-semibold text-neutral-700 border border-neutral-300 hover:bg-neutral-100 transition-colors"
             @click="showBulkDeactivateModal = false"
           >
             CANCEL
           </button>
           <button
-            class="px-4 py-2 text-sm font-semibold text-white bg-red-600 border border-red-600 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+            class="px-4 py-2 text-sm font-semibold text-white bg-red-600 border border-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
             :disabled="bulkDeactivatableUsers.length === 0 || isBulkProcessing"
             @click="bulkDeactivate"
           >
@@ -399,7 +402,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
-import { api } from '../../utils/api';
+import { api, ApiError } from '../../utils/api';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -433,6 +437,7 @@ interface UserItem {
 const users = ref<UserItem[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 
 const userColumns: DataTableColumn<UserItem>[] = [
   {
@@ -578,7 +583,11 @@ async function fetchUsers() {
   try {
     users.value = await api.get<UserItem[]>('/admin/users');
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error';
+    if (err instanceof ApiError && err.code === 'CYCLE_NOT_APPROVED') {
+      noCycle.value = true;
+    } else {
+      error.value = err instanceof Error ? err.message : 'Unknown error';
+    }
   } finally {
     isLoading.value = false;
   }

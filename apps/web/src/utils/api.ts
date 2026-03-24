@@ -7,6 +7,18 @@ const API_BASE =
   getEnv('VITE_API_BASE_URL') ||
   'http://localhost:3000/api/v1';
 
+export class ApiError extends Error {
+  code: string | null;
+  statusCode: number;
+
+  constructor(message: string, statusCode: number, code: string | null = null) {
+    super(message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+}
+
 export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
@@ -79,7 +91,18 @@ export class ApiClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`API Error: ${response.status} - ${errorText}`);
+      let code: string | null = null;
+      try {
+        const parsed = JSON.parse(errorText);
+        code = parsed.error || null;
+      } catch {
+        // not JSON
+      }
+      throw new ApiError(
+        `API Error: ${response.status} - ${errorText}`,
+        response.status,
+        code,
+      );
     }
 
     // Handle empty responses

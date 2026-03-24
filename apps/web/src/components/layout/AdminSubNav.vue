@@ -1,11 +1,5 @@
 <template>
-  <div class="relative bg-white border-b-4 border-[#f2b233]">
-    <!-- <img
-      src="../../assets/branding/Aurora-main-full.svg"
-      alt=""
-      class="pointer-events-none absolute right-0 top-[52px] z-0 h-24 md:h-28 lg:h-32 w-auto max-w-none"
-      @error="handleWaveError"
-    /> -->
+  <div class="relative hidden lg:block bg-white border-b-4 border-[#f2b233]">
     <nav class="relative z-10 bg-white border-b border-neutral-200">
       <div class="container mx-auto px-4 md:px-6">
         <div ref="navRef" class="flex space-x-0 overflow-x-auto scrollbar-hide">
@@ -52,6 +46,7 @@ const allTabs = [
   { name: 'admin-class-view', label: 'Class View', adminOnly: false },
   { name: 'admin-cycle-classes', label: 'Class Management', adminOnly: true },
   { name: 'admin-students', label: 'Students', adminOnly: true },
+  { name: 'admin-cycle', label: 'Cycle', adminOnly: true },
   // { name: 'admin-reports', label: 'Reports', adminOnly: false },
   // { name: 'admin-audit-log', label: 'Audit Log', adminOnly: false },
 ];

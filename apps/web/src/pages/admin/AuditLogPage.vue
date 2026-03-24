@@ -79,6 +79,9 @@
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
     </div>
 
+    <!-- No Cycle Notice -->
+    <NoCycleNotice v-else-if="noCycle" />
+
     <!-- Error State -->
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <p class="text-red-800">{{ error }}</p>
@@ -166,6 +169,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { FileText } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/auth';
+import { ApiError } from '../../utils/api';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -185,6 +190,7 @@ const currentUser = computed(() => authStore.user ? {
 // State
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 interface AuditLogItem {
   id: number;
   action: string;
@@ -308,7 +314,11 @@ async function fetchAuditLogs(page = 1) {
     auditLogs.value = result.data;
     meta.value = result.meta;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'An error occurred';
+    if (e instanceof ApiError && e.code === 'CYCLE_NOT_APPROVED') {
+      noCycle.value = true;
+    } else {
+      error.value = e instanceof Error ? e.message : 'An error occurred';
+    }
   } finally {
     isLoading.value = false;
   }

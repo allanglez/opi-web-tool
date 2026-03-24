@@ -148,9 +148,7 @@ const router = createRouter({
     },
     {
       path: '/admin/reset',
-      name: 'admin-reset',
-      component: () => import('../pages/admin/ResetPage.vue'),
-      meta: { roles: ['ADMIN'] },
+      redirect: '/admin/cycle',
     },
     // Coordinator routes
     {

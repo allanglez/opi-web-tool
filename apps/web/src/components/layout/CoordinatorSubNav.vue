@@ -1,5 +1,5 @@
 <template>
-  <div class="relative bg-white border-b-4 border-[#f2b233]">
+  <div class="relative hidden lg:block bg-white border-b-4 border-[#f2b233]">
     <nav class="relative overflow-hidden bg-white border-b border-neutral-200">
       <div class="container relative z-10 mx-auto px-4 md:px-6">
         <div ref="navRef" class="flex space-x-0 overflow-x-auto scrollbar-hide">

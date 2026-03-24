@@ -11,6 +11,9 @@
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
     </div>
 
+    <!-- No Cycle Notice -->
+    <NoCycleNotice v-else-if="noCycle" />
+
     <!-- Error State -->
     <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <p class="text-red-800">{{ error }}</p>
@@ -146,6 +149,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { Clock3, Info } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/auth';
+import { ApiError } from '../../utils/api';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AppShell from '../../components/layout/AppShell.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import AppDataTable from '../../components/ui/data-table/AppDataTable.vue';
@@ -173,6 +178,7 @@ interface RetentionConfig {
 // State
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 const configs = ref<RetentionConfig[]>([]);
 const editingCycleId = ref<number | null>(null);
 const editRetentionDays = ref<number | null>(null);
@@ -246,7 +252,11 @@ async function fetchConfig() {
 
     configs.value = await res.json();
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'An error occurred';
+    if (e instanceof ApiError && e.code === 'CYCLE_NOT_APPROVED') {
+      noCycle.value = true;
+    } else {
+      error.value = e instanceof Error ? e.message : 'An error occurred';
+    }
   } finally {
     isLoading.value = false;
   }

@@ -66,6 +66,17 @@ export class LocalStorageAdapter implements StorageAdapter {
     return 'application/octet-stream';
   }
 
+  async listObjects(prefix?: string): Promise<string[]> {
+    try {
+      const entries = await fs.readdir(this.uploadDir, { recursive: true }) as string[];
+      const keys = entries
+        .filter((name) => !prefix || name.startsWith(prefix));
+      return keys;
+    } catch {
+      return [];
+    }
+  }
+
   async getObjectMetadata(key: string): Promise<{ sizeBytes: number; mimeType: string } | null> {
     const filePath = join(this.uploadDir, key);
     try {

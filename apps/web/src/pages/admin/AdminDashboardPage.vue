@@ -5,6 +5,9 @@
     <!-- Loading State -->
     <LoadingState v-if="isLoading" />
 
+    <!-- No Cycle Notice -->
+    <NoCycleNotice v-else-if="noCycle" />
+
     <!-- Error State -->
     <ErrorState v-else-if="error" :message="error" @retry="fetchDashboard" />
 
@@ -90,7 +93,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
-import { api } from '../../utils/api';
+import { api, ApiError } from '../../utils/api';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -136,6 +140,7 @@ interface DashboardStats {
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 const stats = ref<DashboardStats>({
   systemOverview: { totalStudents: 0, completed: 0, inProgress: 0, notStarted: 0, overallProgress: 0 },
   schoolsCompletion: [],
@@ -149,7 +154,11 @@ async function fetchDashboard() {
   try {
     stats.value = await api.get<DashboardStats>('/admin/dashboard/stats');
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error';
+    if (err instanceof ApiError && err.code === 'CYCLE_NOT_APPROVED') {
+      noCycle.value = true;
+    } else {
+      error.value = err instanceof Error ? err.message : 'Unknown error';
+    }
   } finally {
     isLoading.value = false;
   }

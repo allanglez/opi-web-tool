@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Param, Body, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CyclesService } from './cycles.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateCycleDto } from './dto/create-cycle.dto';
+import { UpdateCycleDto } from './dto/update-cycle.dto';
 
 @ApiTags('Cycles')
 @ApiBearerAuth('access-token')
@@ -22,6 +23,16 @@ export class CyclesController {
   @ApiOperation({ summary: 'Create a new assessment cycle (school year period)' })
   async createCycle(@Body() dto: CreateCycleDto, @CurrentUser() user: any) {
     return this.cyclesService.createCycle(dto, user.id);
+  }
+
+  @Patch('admin/cycles/:id')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Update cycle name/dates (only before approval)' })
+  async updateCycle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCycleDto,
+  ) {
+    return this.cyclesService.updateCycle(id, dto);
   }
 
   @Post('admin/cycles/:id/approve')

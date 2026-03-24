@@ -11,7 +11,7 @@
           />
         </div>
 
-        <div class="flex items-center text-[11px] text-neutral-600">
+        <div class="flex items-center gap-3 text-[11px] text-neutral-600">
           <button
             v-if="showGuestLogin"
             class="inline-flex items-center gap-2 text-[16px] font-bold text-[#0f3f52] transition-colors hover:text-[#0c3444]"
@@ -37,6 +37,17 @@
             <User class="w-4 h-4 text-[#0f3f52]" />
             <span class="max-w-[180px] truncate">{{ userDisplayName }}</span>
           </div>
+
+          <span v-if="user" class="lg:hidden h-3.5 w-px bg-neutral-300"></span>
+
+          <button
+            v-if="user"
+            class="lg:hidden inline-flex items-center justify-center p-1.5 text-[#0f3f52] hover:bg-neutral-100 rounded transition-colors"
+            aria-label="Open navigation menu"
+            @click="emit('toggle-sidebar')"
+          >
+            <Menu class="w-6 h-6" />
+          </button>
         </div>
       </div>
 
@@ -46,7 +57,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { LogIn, LogOut, User } from 'lucide-vue-next';
+import { LogIn, LogOut, User, Menu } from 'lucide-vue-next';
 
 interface Props {
   showGuestLogin?: boolean;
@@ -67,6 +78,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   login: [];
   logout: [];
+  'toggle-sidebar': [];
 }>();
 
 const userDisplayName = computed(() => {

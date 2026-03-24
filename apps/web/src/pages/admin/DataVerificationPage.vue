@@ -76,6 +76,7 @@
 
     <!-- Loading / Error -->
     <LoadingState v-if="isLoading" />
+    <NoCycleNotice v-else-if="noCycle" />
     <ErrorState v-else-if="error" :message="error" @retry="fetchData" />
 
     <!-- Table -->
@@ -177,7 +178,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
-import { api } from '../../utils/api';
+import { api, ApiError } from '../../utils/api';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -232,6 +234,7 @@ interface VerificationResponse {
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+const noCycle = ref(false);
 const startingStudentId = ref<number | null>(null);
 const cycleId = ref<number | null>(null);
 const assessments = ref<AssessmentRow[]>([]);
@@ -371,7 +374,11 @@ async function fetchData() {
     stats.value = data.stats;
     filterOptions.value = data.filterOptions;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load verification data';
+    if (err instanceof ApiError && err.code === 'CYCLE_NOT_APPROVED') {
+      noCycle.value = true;
+    } else {
+      error.value = err instanceof Error ? err.message : 'Failed to load verification data';
+    }
   } finally {
     isLoading.value = false;
   }

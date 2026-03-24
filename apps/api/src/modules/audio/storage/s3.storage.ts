@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -76,6 +77,35 @@ export class S3StorageAdapter implements StorageAdapter {
         Key: key,
       }),
     );
+  }
+
+  async listObjects(prefix?: string): Promise<string[]> {
+    await this.bucketReadyPromise;
+
+    const keys: string[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: this.config.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        }),
+      );
+
+      if (response.Contents) {
+        for (const obj of response.Contents) {
+          if (obj.Key) keys.push(obj.Key);
+        }
+      }
+
+      continuationToken = response.IsTruncated
+        ? response.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    return keys;
   }
 
   async getObjectMetadata(key: string): Promise<{ sizeBytes: number; mimeType: string } | null> {

@@ -17,6 +17,11 @@ export interface StorageAdapter {
   deleteObject(key: string): Promise<void>;
 
   /**
+   * List all object keys in the bucket, optionally filtered by prefix.
+   */
+  listObjects(prefix?: string): Promise<string[]>;
+
+  /**
    * Get file metadata (size, etc.)
    */
   getObjectMetadata(key: string): Promise<{ sizeBytes: number; mimeType: string } | null>;

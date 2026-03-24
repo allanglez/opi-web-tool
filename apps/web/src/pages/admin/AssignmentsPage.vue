@@ -7,6 +7,8 @@
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900" />
       </div>
 
+      <NoCycleNotice v-else-if="noCycle" />
+
       <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
         <p class="text-red-800">{{ error }}</p>
         <button class="mt-2 text-sm text-red-600 hover:underline" @click="fetchData">Retry</button>
@@ -177,7 +179,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from '../../stores/auth';
-import { api } from '../../utils/api';
+import { api, ApiError } from '../../utils/api';
+import NoCycleNotice from '../../components/ui/NoCycleNotice.vue';
 import AppShell from '../../components/layout/AppShell.vue';
 import AdminSubNav from '../../components/layout/AdminSubNav.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
@@ -381,11 +384,17 @@ async function fetchData() {
     schools.value = response.schools ?? [];
     classes.value = response.classes ?? [];
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'An error occurred';
+    if (err instanceof ApiError && err.code === 'CYCLE_NOT_APPROVED') {
+      noCycle.value = true;
+    } else {
+      error.value = err instanceof Error ? err.message : 'An error occurred';
+    }
   } finally {
     isLoading.value = false;
   }
 }
+
+const noCycle = ref(false);
 
 onMounted(fetchData);
 </script>

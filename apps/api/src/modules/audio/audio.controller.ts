@@ -76,12 +76,17 @@ export class AudioController {
       user.roles,
     );
 
-    if (data.sizeBytes) {
-      res.header('Content-Length', data.sizeBytes);
+    // Buffer the stream to avoid Fastify/S3 SDK stream compatibility issues
+    const chunks: Buffer[] = [];
+    for await (const chunk of data.stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
-    res.header('Content-Type', data.mimeType);
-    res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(data.fileName)}"`);
+    const buffer = Buffer.concat(chunks);
 
-    return res.send(data.stream);
+    res.header('Content-Length', buffer.length);
+    res.header('Content-Type', data.mimeType);
+    res.header('Content-Disposition', `inline; filename="${encodeURIComponent(data.fileName)}"`);
+
+    return res.send(buffer);
   }
 }

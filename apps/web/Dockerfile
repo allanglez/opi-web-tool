@@ -37,7 +37,7 @@ COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
 
 USER root
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh && chown nginx:nginx /usr/share/nginx/html
 USER nginx
 
 EXPOSE 8080

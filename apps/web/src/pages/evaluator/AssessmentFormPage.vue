@@ -875,7 +875,10 @@ async function ensureRecordingBlobUrl(recording: AudioRecording): Promise<string
 
   recordingLoading.value = { ...recordingLoading.value, [recording.id]: true };
   try {
-    const response = await fetch(recording.downloadUrl, {
+    const downloadUrl = recording.downloadUrl.startsWith('http')
+      ? recording.downloadUrl
+      : `${API_BASE}${recording.downloadUrl.replace(/^\/api\/v1/, '')}`;
+    const response = await fetch(downloadUrl, {
       headers: await getAuthHeaders(false),
       credentials: 'include',
     });

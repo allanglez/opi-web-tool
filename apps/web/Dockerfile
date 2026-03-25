@@ -27,18 +27,14 @@ ENV VITE_AUTH0_REDIRECT_URI=${VITE_AUTH0_REDIRECT_URI}
 RUN pnpm --filter web build
 
 FROM nginxinc/nginx-unprivileged:stable-alpine AS production
-# Copy static files to nginx html directory
-COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+# Copy static files to nginx html directory (owned by nginx so entrypoint can write env-config.js)
+COPY --chown=nginx:nginx --from=build /app/apps/web/dist /usr/share/nginx/html
 
 # Add custom nginx config for SPA fallback routes
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Entrypoint generates env-config.js from K8s environment variables at startup
-COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
-
-USER root
-RUN chmod +x /docker-entrypoint.sh && chown -R nginx:nginx /usr/share/nginx/html
-USER nginx
+COPY --chmod=755 apps/web/docker-entrypoint.sh /docker-entrypoint.sh
 
 EXPOSE 8080
 ENTRYPOINT ["/docker-entrypoint.sh"]

@@ -27,8 +27,8 @@ ENV VITE_AUTH0_REDIRECT_URI=${VITE_AUTH0_REDIRECT_URI}
 RUN pnpm --filter web build
 
 FROM nginxinc/nginx-unprivileged:stable-alpine AS production
-# Stage static files (emptyDir will be mounted at /usr/share/nginx/html in K8s)
-COPY --chown=nginx:nginx --from=build /app/apps/web/dist /app/static
+# Copy static files to nginx html directory
+COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 
 # Add custom nginx config for SPA fallback routes
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf

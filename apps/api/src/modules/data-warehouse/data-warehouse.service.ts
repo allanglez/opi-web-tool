@@ -315,7 +315,7 @@ export class DataWarehouseService {
               semesterTerm: classData.semesterTerm,
               teacherId: teacher?.id || null,
               programId: program?.id || null,
-              isIncluded: true,
+              isIncluded: false,
             },
           });
         }

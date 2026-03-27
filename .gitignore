@@ -46,3 +46,6 @@ audio-storage/
 
 # OS
 Thumbs.db
+
+#k8 deployment minikuibe
+k8s/

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CyclesService } from '../cycles/cycles.service';
+import { AuditService } from '../audit/audit.service';
 import {
   BulkCreateSchoolAssessmentDatesDto,
   CreateSchoolAssessmentDateDto,
@@ -16,6 +17,7 @@ export class SchedulingService {
   constructor(
     private prisma: PrismaService,
     private cyclesService: CyclesService,
+    private auditService: AuditService,
   ) {}
 
   async getCoordinatorDashboard() {
@@ -494,7 +496,7 @@ export class SchedulingService {
       });
     }
 
-    return this.prisma.schoolAssessmentDate.create({
+    const result = await this.prisma.schoolAssessmentDate.create({
       data: {
         cycleId: cycle.id,
         schoolId,
@@ -503,6 +505,15 @@ export class SchedulingService {
         createdBy: userId,
       },
     });
+
+    await this.auditService.logSystemEvent('SCHEDULE_DATE_CREATE', userId, {
+      schoolId,
+      assessmentDate: assessmentDate.toISOString().slice(0, 10),
+      roundId,
+      cycleId: cycle.id,
+    });
+
+    return result;
   }
 
   async createSchoolDatesBulk(
@@ -547,6 +558,17 @@ export class SchedulingService {
       });
     }
 
+    if (rowsToCreate.length > 0) {
+      await this.auditService.logSystemEvent('SCHEDULE_DATE_BULK_CREATE', userId, {
+        schoolId,
+        cycleId: cycle.id,
+        roundId,
+        datesCreated: rowsToCreate.map((d) => d.toISOString().slice(0, 10)),
+        recordsInserted: rowsToCreate.length,
+        recordsSkipped: normalizedDates.length - rowsToCreate.length,
+      });
+    }
+
     return {
       recordsTotal: dto.assessmentDates.length,
       recordsProcessed: normalizedDates.length,
@@ -555,7 +577,7 @@ export class SchedulingService {
     };
   }
 
-  async deleteSchoolDate(schoolId: number, dateId: number) {
+  async deleteSchoolDate(schoolId: number, dateId: number, userId: number) {
     const cycle = await this.cyclesService.checkCycleApproval();
     await this.ensureSchoolInCycle(schoolId, cycle.id);
 
@@ -578,6 +600,12 @@ export class SchedulingService {
       where: {
         id: dateId,
       },
+    });
+
+    await this.auditService.logSystemEvent('SCHEDULE_DATE_DELETE', userId, {
+      schoolId,
+      dateId,
+      cycleId: cycle.id,
     });
 
     return {

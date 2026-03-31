@@ -1,6 +1,7 @@
-import { Controller, Get, Patch, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Patch, Param, Body, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { StudentsService } from './students.service';
+import { CyclesService } from '../cycles/cycles.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { UpdateStudentDto, UpdateStudentEnrollmentDto } from './dto/update-student.dto';
@@ -9,17 +10,36 @@ import { UpdateStudentDto, UpdateStudentEnrollmentDto } from './dto/update-stude
 @ApiBearerAuth('access-token')
 @Controller()
 export class StudentsController {
-  constructor(private readonly studentsService: StudentsService) {}
+  constructor(
+    private readonly studentsService: StudentsService,
+    private readonly cyclesService: CyclesService,
+  ) {}
 
   @Get('admin/students')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'List students for a cycle with optional school filter' })
+  @ApiQuery({ name: 'cycleId', required: false, description: 'Defaults to the active cycle if omitted' })
+  @ApiQuery({ name: 'schoolId', required: false, description: 'Filter by school' })
   async getStudents(
-    @Query('cycleId', ParseIntPipe) cycleId: number,
+    @Query('cycleId') cycleId?: string,
     @Query('schoolId') schoolId?: string,
   ) {
+    let resolvedCycleId: number;
+    if (cycleId) {
+      resolvedCycleId = parseInt(cycleId, 10);
+      if (isNaN(resolvedCycleId)) {
+        throw new BadRequestException('cycleId must be a valid number');
+      }
+    } else {
+      const activeCycle = await this.cyclesService.getActiveCycle();
+      if (!activeCycle) {
+        throw new BadRequestException('No active cycle found. Please provide a cycleId.');
+      }
+      resolvedCycleId = activeCycle.id;
+    }
+
     return this.studentsService.getStudentsByCycle(
-      cycleId,
+      resolvedCycleId,
       schoolId ? parseInt(schoolId, 10) : undefined,
     );
   }

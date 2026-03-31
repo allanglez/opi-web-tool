@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -19,6 +19,12 @@ export class DashboardController {
   @Get('verification')
   @Roles('ADMIN', 'COORDINATOR')
   @ApiOperation({ summary: 'Assessment verification view with full filtering across the system' })
+  @ApiQuery({ name: 'schoolId', required: false, description: 'Filter by school' })
+  @ApiQuery({ name: 'classId', required: false, description: 'Filter by class' })
+  @ApiQuery({ name: 'evaluatorId', required: false, description: 'Filter by evaluator' })
+  @ApiQuery({ name: 'reEval', required: false, description: 'Filter by re-evaluation status' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by assessment status' })
+  @ApiQuery({ name: 'programId', required: false, description: 'Filter by program' })
   async getVerification(
     @Query('schoolId') schoolId?: string,
     @Query('classId') classId?: string,

@@ -78,7 +78,8 @@ export class SchedulingController {
   async deleteSchoolDate(
     @Param('schoolId', ParseIntPipe) schoolId: number,
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { id: number },
   ) {
-    return this.schedulingService.deleteSchoolDate(schoolId, id);
+    return this.schedulingService.deleteSchoolDate(schoolId, id, user.id);
   }
 }

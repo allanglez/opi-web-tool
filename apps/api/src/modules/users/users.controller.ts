@@ -14,6 +14,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -39,6 +40,7 @@ export class UsersController {
       email: string;
       role: string;
     },
+    @CurrentUser() user: { id: number },
   ) {
     if (!body.firstName || !body.email || !body.role) {
       throw new BadRequestException('firstName, email, and role are required');
@@ -57,7 +59,7 @@ export class UsersController {
         lastName: body.lastName || '',
         email: body.email,
         role: body.role,
-      });
+      }, user.id);
     } catch (err) {
       if (err instanceof Error && err.message.includes('already exists')) {
         throw new ConflictException(err.message);
@@ -78,22 +80,23 @@ export class UsersController {
       email: string;
       role: string;
     },
+    @CurrentUser() user: { id: number },
   ) {
     if (!body.firstName || !body.email || !body.role) {
       throw new BadRequestException('firstName, email, and role are required');
     }
 
     try {
-      const user = await this.usersService.updateUserWithRole(id, {
+      const result = await this.usersService.updateUserWithRole(id, {
         firstName: body.firstName,
         lastName: body.lastName || '',
         email: body.email,
         role: body.role,
-      });
-      if (!user) {
+      }, user.id);
+      if (!result) {
         throw new NotFoundException('User not found');
       }
-      return user;
+      return result;
     } catch (err) {
       if (err instanceof Error && err.message === 'User not found') {
         throw new NotFoundException(err.message);
@@ -105,22 +108,28 @@ export class UsersController {
   @Patch(':id/deactivate')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Deactivate a user to prevent login and API access' })
-  async deactivateUser(@Param('id', ParseIntPipe) id: number) {
-    const user = await this.usersService.setActiveStatus(id, false);
-    if (!user) {
+  async deactivateUser(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { id: number },
+  ) {
+    const result = await this.usersService.setActiveStatus(id, false, user.id);
+    if (!result) {
       throw new NotFoundException('User not found');
     }
-    return user;
+    return result;
   }
 
   @Patch(':id/activate')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Reactivate a previously deactivated user' })
-  async activateUser(@Param('id', ParseIntPipe) id: number) {
-    const user = await this.usersService.setActiveStatus(id, true);
-    if (!user) {
+  async activateUser(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { id: number },
+  ) {
+    const result = await this.usersService.setActiveStatus(id, true, user.id);
+    if (!result) {
       throw new NotFoundException('User not found');
     }
-    return user;
+    return result;
   }
 }

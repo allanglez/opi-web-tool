@@ -2,13 +2,13 @@ import {
     Controller,
     Get,
     Query,
-    ParseIntPipe,
     BadRequestException,
     Header,
     StreamableFile,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
+import { CyclesService } from '../cycles/cycles.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Scopes } from '../../common/decorators/scopes.decorator';
 
@@ -16,7 +16,26 @@ import { Scopes } from '../../common/decorators/scopes.decorator';
 @ApiBearerAuth('access-token')
 @Controller('reports')
 export class ReportsController {
-    constructor(private readonly reportsService: ReportsService) { }
+    constructor(
+        private readonly reportsService: ReportsService,
+        private readonly cyclesService: CyclesService,
+    ) { }
+
+    private async resolveCycleId(cycleId?: string): Promise<number> {
+        if (cycleId) {
+            const parsed = parseInt(cycleId, 10);
+            if (isNaN(parsed)) {
+                throw new BadRequestException('cycleId must be a valid number');
+            }
+            return parsed;
+        }
+
+        const activeCycle = await this.cyclesService.getActiveCycle();
+        if (!activeCycle) {
+            throw new BadRequestException('No active cycle found. Please provide a cycleId.');
+        }
+        return activeCycle.id;
+    }
 
     /**
      * GET /reports/export?cycleId=&roundId=
@@ -28,16 +47,16 @@ export class ReportsController {
     @Scopes('reports:export')
     @Roles('ADMIN')
     @ApiOperation({ summary: 'Export assessment results as JSON (student number, OPI level, status). M2M-friendly endpoint' })
+    @ApiQuery({ name: 'cycleId', required: false, description: 'Defaults to the active cycle if omitted' })
+    @ApiQuery({ name: 'roundId', required: false, description: 'Filter by assessment round' })
     async exportData(
-        @Query('cycleId', ParseIntPipe) cycleId: number,
+        @Query('cycleId') cycleId?: string,
         @Query('roundId') roundId?: string,
     ) {
-        if (!cycleId) {
-            throw new BadRequestException('cycleId is required');
-        }
+        const resolvedCycleId = await this.resolveCycleId(cycleId);
 
         return this.reportsService.getExportData({
-            cycleId,
+            cycleId: resolvedCycleId,
             roundId: roundId ? parseInt(roundId, 10) : undefined,
         });
     }
@@ -51,16 +70,16 @@ export class ReportsController {
     @Roles('ADMIN')
     @Header('Content-Type', 'text/csv')
     @ApiOperation({ summary: 'Export assessment results as a CSV download. M2M-friendly endpoint' })
+    @ApiQuery({ name: 'cycleId', required: false, description: 'Defaults to the active cycle if omitted' })
+    @ApiQuery({ name: 'roundId', required: false, description: 'Filter by assessment round' })
     async exportDataCsv(
-        @Query('cycleId', ParseIntPipe) cycleId: number,
+        @Query('cycleId') cycleId?: string,
         @Query('roundId') roundId?: string,
     ) {
-        if (!cycleId) {
-            throw new BadRequestException('cycleId is required');
-        }
+        const resolvedCycleId = await this.resolveCycleId(cycleId);
 
         const data = await this.reportsService.getExportData({
-            cycleId,
+            cycleId: resolvedCycleId,
             roundId: roundId ? parseInt(roundId, 10) : undefined,
         });
 
@@ -77,16 +96,16 @@ export class ReportsController {
     @Get('progress')
     @Roles('COORDINATOR', 'ADMIN')
     @ApiOperation({ summary: 'Detailed progress report with full student information (coordinator view)' })
+    @ApiQuery({ name: 'cycleId', required: false, description: 'Defaults to the active cycle if omitted' })
+    @ApiQuery({ name: 'roundId', required: false, description: 'Filter by assessment round' })
     async progressReport(
-        @Query('cycleId', ParseIntPipe) cycleId: number,
+        @Query('cycleId') cycleId?: string,
         @Query('roundId') roundId?: string,
     ) {
-        if (!cycleId) {
-            throw new BadRequestException('cycleId is required');
-        }
+        const resolvedCycleId = await this.resolveCycleId(cycleId);
 
         return this.reportsService.getProgressReport({
-            cycleId,
+            cycleId: resolvedCycleId,
             roundId: roundId ? parseInt(roundId, 10) : undefined,
         });
     }
@@ -99,16 +118,16 @@ export class ReportsController {
     @Roles('COORDINATOR', 'ADMIN')
     @Header('Content-Type', 'text/csv')
     @ApiOperation({ summary: 'Progress report as a CSV download' })
+    @ApiQuery({ name: 'cycleId', required: false, description: 'Defaults to the active cycle if omitted' })
+    @ApiQuery({ name: 'roundId', required: false, description: 'Filter by assessment round' })
     async progressReportCsv(
-        @Query('cycleId', ParseIntPipe) cycleId: number,
+        @Query('cycleId') cycleId?: string,
         @Query('roundId') roundId?: string,
     ) {
-        if (!cycleId) {
-            throw new BadRequestException('cycleId is required');
-        }
+        const resolvedCycleId = await this.resolveCycleId(cycleId);
 
         const data = await this.reportsService.getProgressReport({
-            cycleId,
+            cycleId: resolvedCycleId,
             roundId: roundId ? parseInt(roundId, 10) : undefined,
         });
 
@@ -125,13 +144,12 @@ export class ReportsController {
     @Get('summary')
     @Roles('COORDINATOR', 'ADMIN')
     @ApiOperation({ summary: 'Export summary with aggregated statistics for a cycle' })
+    @ApiQuery({ name: 'cycleId', required: false, description: 'Defaults to the active cycle if omitted' })
     async exportSummary(
-        @Query('cycleId', ParseIntPipe) cycleId: number,
+        @Query('cycleId') cycleId?: string,
     ) {
-        if (!cycleId) {
-            throw new BadRequestException('cycleId is required');
-        }
+        const resolvedCycleId = await this.resolveCycleId(cycleId);
 
-        return this.reportsService.getExportSummary(cycleId);
+        return this.reportsService.getExportSummary(resolvedCycleId);
     }
 }

@@ -1,5 +1,5 @@
 import { Controller, Get, Patch, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ClassesService } from './classes.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
@@ -36,6 +36,9 @@ export class ClassesController {
   @Get('admin/classes')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'List all classes with school, program, and student counts (admin view)' })
+  @ApiQuery({ name: 'cycleId', required: false, description: 'Filter by cycle ID' })
+  @ApiQuery({ name: 'schoolId', required: false, description: 'Filter by school' })
+  @ApiQuery({ name: 'programId', required: false, description: 'Filter by program' })
   async getClasses(
     @Query('cycleId') cycleId?: string,
     @Query('schoolId') schoolId?: string,

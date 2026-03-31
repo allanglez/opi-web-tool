@@ -18,6 +18,20 @@ export type AuditAction =
     | 'SCORE_CHANGE'
     | 'REVIEW_RESOLVED';
 
+export type SystemAction =
+    | 'CYCLE_RESET'
+    | 'SCHEDULE_DATE_CREATE'
+    | 'SCHEDULE_DATE_BULK_CREATE'
+    | 'SCHEDULE_DATE_DELETE'
+    | 'EVALUATOR_ASSIGN'
+    | 'EVALUATOR_BULK_ASSIGN'
+    | 'EVALUATOR_UNASSIGN'
+    | 'USER_CREATE'
+    | 'USER_UPDATE'
+    | 'USER_ROLE_CHANGE'
+    | 'USER_ACTIVATE'
+    | 'USER_DEACTIVATE';
+
 export type ManualEditAction =
     | 'STUDENT_EDIT'
     | 'STUDENT_SCHOOL_REASSIGNMENT'
@@ -267,6 +281,113 @@ export class AuditService {
                 }),
             ),
         );
+    }
+
+    /**
+     * Log an action to the system audit log.
+     */
+    async logSystemEvent(
+        action: SystemAction,
+        performedBy: number,
+        details?: Record<string, unknown>,
+    ) {
+        return this.prisma.systemAuditLog.create({
+            data: {
+                action,
+                performedBy,
+                details: details ? JSON.stringify(details) : null,
+            },
+        });
+    }
+
+    /**
+     * Get the full system audit history: system operations, manual edits, and ingestion logs.
+     * Returns all entries sorted by date descending.
+     */
+    async getSystemAuditHistory() {
+        const [systemLogs, manualEditLogs, ingestionLogs] = await Promise.all([
+            this.prisma.systemAuditLog.findMany({
+                include: {
+                    performer: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                        },
+                    },
+                },
+                orderBy: { performedAt: 'desc' },
+            }),
+            this.prisma.manualEditAuditLog.findMany({
+                include: {
+                    changer: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                        },
+                    },
+                },
+                orderBy: { changedAt: 'desc' },
+            }),
+            this.prisma.ingestionLog.findMany({
+                orderBy: { createdAt: 'desc' },
+            }),
+        ]);
+
+        const unified = [
+            ...systemLogs.map((log) => ({
+                source: 'SYSTEM' as const,
+                id: log.id,
+                action: log.action,
+                date: log.performedAt,
+                user: log.performer,
+                details: {
+                    cycleId: log.cycleId,
+                    cycleName: log.cycleName,
+                    cycleYear: log.cycleYear,
+                    purgedAssessments: log.purgedAssessments,
+                    purgedStudents: log.purgedStudents,
+                    purgedAudioFiles: log.purgedAudioFiles,
+                    extra: log.details ? JSON.parse(log.details) : null,
+                },
+            })),
+            ...manualEditLogs.map((log) => ({
+                source: 'MANUAL_EDIT' as const,
+                id: log.id,
+                action: log.action,
+                date: log.changedAt,
+                user: log.changer,
+                details: {
+                    entityType: log.entityType,
+                    entityId: log.entityId,
+                    fieldName: log.fieldName,
+                    oldValue: log.oldValue,
+                    newValue: log.newValue,
+                },
+            })),
+            ...ingestionLogs.map((log) => ({
+                source: 'INGESTION' as const,
+                id: log.id,
+                action: 'DATA_INGESTION',
+                date: log.createdAt,
+                user: null,
+                details: {
+                    entityType: log.entityType,
+                    recordsTotal: log.recordsTotal,
+                    recordsUpserted: log.recordsUpserted,
+                    recordsFailed: log.recordsFailed,
+                    errors: log.errors ? JSON.parse(log.errors) : null,
+                    idempotencyKey: log.idempotencyKey,
+                },
+            })),
+        ];
+
+        unified.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+        return unified;
     }
 
     /**

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CyclesService } from '../cycles/cycles.service';
+import { AuditService } from '../audit/audit.service';
 import {
   BulkCreateAssignmentsDto,
   CreateAssignmentDto,
@@ -17,6 +18,7 @@ export class AssignmentsService {
   constructor(
     private prisma: PrismaService,
     private cyclesService: CyclesService,
+    private auditService: AuditService,
   ) {}
 
   async createAssignment(dto: CreateAssignmentDto, assignedByUserId: number) {
@@ -62,7 +64,7 @@ export class AssignmentsService {
       });
     }
 
-    return this.prisma.evaluatorAssignment.create({
+    const result = await this.prisma.evaluatorAssignment.create({
       data: {
         cycleId: dto.cycleId,
         classId: dto.classId,
@@ -92,6 +94,16 @@ export class AssignmentsService {
         },
       },
     });
+
+    await this.auditService.logSystemEvent('EVALUATOR_ASSIGN', assignedByUserId, {
+      cycleId: dto.cycleId,
+      classId: dto.classId,
+      evaluatorId: dto.evaluatorId,
+      evaluatorName: `${result.evaluator.firstName} ${result.evaluator.lastName}`.trim(),
+      schoolName: result.class.school.name,
+    });
+
+    return result;
   }
 
   async createBulkAssignments(dto: BulkCreateAssignmentsDto, assignedByUserId: number) {
@@ -228,6 +240,17 @@ export class AssignmentsService {
       await this.prisma.evaluatorAssignment.createMany({
         data: rowsToCreate,
       });
+
+      await this.auditService.logSystemEvent('EVALUATOR_BULK_ASSIGN', assignedByUserId, {
+        cycleId: dto.cycleId,
+        recordsCreated: rowsToCreate.length,
+        recordsSkipped: skippedDuplicates,
+        recordsFailed: errors.length,
+        assignments: rowsToCreate.map((r) => ({
+          classId: r.classId,
+          evaluatorId: r.evaluatorId,
+        })),
+      });
     }
 
     return {
@@ -285,9 +308,13 @@ export class AssignmentsService {
     });
   }
 
-  async deleteAssignment(id: number, _deletedByUserId: number) {
+  async deleteAssignment(id: number, deletedByUserId: number) {
     const assignment = await this.prisma.evaluatorAssignment.findUnique({
       where: { id },
+      include: {
+        evaluator: { select: { firstName: true, lastName: true } },
+        class: { include: { school: { select: { name: true } } } },
+      },
     });
 
     if (!assignment) {
@@ -296,6 +323,14 @@ export class AssignmentsService {
 
     await this.prisma.evaluatorAssignment.delete({
       where: { id },
+    });
+
+    await this.auditService.logSystemEvent('EVALUATOR_UNASSIGN', deletedByUserId, {
+      cycleId: assignment.cycleId,
+      classId: assignment.classId,
+      evaluatorId: assignment.evaluatorId,
+      evaluatorName: `${assignment.evaluator.firstName} ${assignment.evaluator.lastName}`.trim(),
+      schoolName: assignment.class.school.name,
     });
 
     return { success: true, deletedId: id };

@@ -1,10 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   async findByExternalAuthId(externalAuthId: string) {
     return this.prisma.user.findUnique({
@@ -233,7 +237,7 @@ export class UsersService {
     lastName: string;
     email: string;
     role: string;
-  }) {
+  }, performedBy?: number) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -272,6 +276,16 @@ export class UsersService {
       },
     });
 
+    if (performedBy) {
+      await this.auditService.logSystemEvent('USER_CREATE', performedBy, {
+        createdUserId: user.id,
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+      });
+    }
+
     return {
       id: user.id,
       email: user.email,
@@ -285,8 +299,12 @@ export class UsersService {
   async updateUserWithRole(
     userId: number,
     data: { firstName: string; lastName: string; email: string; role: string },
+    performedBy?: number,
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } } },
+    });
     if (!user) {
       throw new Error('User not found');
     }
@@ -297,6 +315,13 @@ export class UsersService {
     if (!role) {
       throw new Error(`Role '${data.role}' does not exist`);
     }
+
+    const oldRole = user.userRoles[0]?.role?.name ?? null;
+    const changes: Record<string, { old: string | null; new: string }> = {};
+    if (user.firstName !== data.firstName) changes.firstName = { old: user.firstName, new: data.firstName };
+    if (user.lastName !== data.lastName) changes.lastName = { old: user.lastName, new: data.lastName };
+    if (user.email !== data.email) changes.email = { old: user.email, new: data.email };
+    if (oldRole !== data.role) changes.role = { old: oldRole, new: data.role };
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -312,17 +337,35 @@ export class UsersService {
       data: { userId, roleId: role.id },
     });
 
+    if (performedBy && Object.keys(changes).length > 0) {
+      const hasRoleChange = 'role' in changes;
+      await this.auditService.logSystemEvent(
+        hasRoleChange ? 'USER_ROLE_CHANGE' : 'USER_UPDATE',
+        performedBy,
+        { targetUserId: userId, email: data.email, changes },
+      );
+    }
+
     return this.getUserWithRoles(userId);
   }
 
-  async setActiveStatus(userId: number, isActive: boolean) {
+  async setActiveStatus(userId: number, isActive: boolean, performedBy?: number) {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { 
+      data: {
         isActive,
         statusChangedAt: new Date(),
       },
     });
+
+    if (performedBy) {
+      await this.auditService.logSystemEvent(
+        isActive ? 'USER_ACTIVATE' : 'USER_DEACTIVATE',
+        performedBy,
+        { targetUserId: userId },
+      );
+    }
+
     return this.getUserWithRoles(userId);
   }
 }

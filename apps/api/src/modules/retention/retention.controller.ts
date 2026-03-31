@@ -10,7 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { RetentionService } from './retention.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -28,6 +28,7 @@ export class RetentionController {
   @Get('admin/retention/config')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Get data retention settings for assessment cycles' })
+  @ApiQuery({ name: 'cycleId', required: false, description: 'Filter by cycle ID' })
   async getRetentionConfig(@Query('cycleId') cycleId?: string) {
     const parsedCycleId = cycleId ? parseInt(cycleId, 10) : undefined;
     return this.retentionService.getRetentionConfig(parsedCycleId);

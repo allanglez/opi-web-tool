@@ -7,7 +7,7 @@ import {
     Body,
     ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { EvaluatorService } from './evaluator.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -28,6 +28,7 @@ export class EvaluatorController {
     @Get('assignments')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     @ApiOperation({ summary: 'All student assignments grouped by school for the logged-in evaluator' })
+    @ApiQuery({ name: 'schoolId', required: false, description: 'Filter by school' })
     async getAssignments(
         @CurrentUser() user: { id: number },
         @Query('schoolId') schoolId?: string,
@@ -41,6 +42,10 @@ export class EvaluatorController {
     @Get('class-view')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     @ApiOperation({ summary: 'Class-level view with student assessment statuses; coordinators/admins see all classes with pagination' })
+    @ApiQuery({ name: 'schoolId', required: false, description: 'Filter by school' })
+    @ApiQuery({ name: 'classId', required: false, description: 'Filter by class' })
+    @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'pageSize', required: false, description: 'Items per page (default: 25)' })
     async getClassView(
         @CurrentUser() user: { id: number; roles: string[] },
         @Query('schoolId') schoolId?: string,

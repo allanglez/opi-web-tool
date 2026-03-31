@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { IngestionService } from './ingestion.service';
 import { Scopes } from '../../common/decorators/scopes.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -58,6 +58,7 @@ export class IngestionController {
   @Get('logs')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'View recent data ingestion history and results' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max records to return (default: 50)' })
   async getIngestionLogs(@Query('limit') limit?: string) {
     return this.ingestionService.getIngestionLogs(limit ? parseInt(limit, 10) : 50);
   }

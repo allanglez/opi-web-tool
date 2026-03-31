@@ -14,6 +14,20 @@ export interface ExportRow {
     completed_at: string | null;
 }
 
+export interface AuditEntry {
+    action: string;
+    field_name: string | null;
+    old_value: string | null;
+    new_value: string | null;
+    changed_by: {
+        id: number;
+        first_name: string;
+        last_name: string;
+        email: string;
+    } | null;
+    changed_at: string;
+}
+
 export interface ProgressRow {
     student_number: string;
     first_name: string;
@@ -31,6 +45,7 @@ export interface ProgressRow {
     completed_at: string | null;
     has_audio: boolean;
     needs_review: boolean;
+    audit_history: AuditEntry[];
 }
 
 @Injectable()
@@ -146,6 +161,19 @@ export class ReportsService {
                     select: { id: true },
                     take: 1,
                 },
+                auditLogs: {
+                    include: {
+                        changer: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                            },
+                        },
+                    },
+                    orderBy: { changedAt: 'desc' },
+                },
             },
             orderBy: [
                 { student: { school: { name: 'asc' } } },
@@ -175,6 +203,21 @@ export class ReportsService {
                 completed_at: a.completedAt?.toISOString() ?? null,
                 has_audio: a.audioRecordings.length > 0,
                 needs_review: a.needsReview,
+                audit_history: a.auditLogs.map((log) => ({
+                    action: log.action,
+                    field_name: log.fieldName,
+                    old_value: log.oldValue,
+                    new_value: log.newValue,
+                    changed_by: log.changer
+                        ? {
+                            id: log.changer.id,
+                            first_name: log.changer.firstName,
+                            last_name: log.changer.lastName,
+                            email: log.changer.email,
+                        }
+                        : null,
+                    changed_at: log.changedAt.toISOString(),
+                })),
             };
         });
     }

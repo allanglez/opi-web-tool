@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { isAuth0Mode, isMockAuthMode } from '../auth/mode';
-import { getAuth0AccessToken, logoutWithAuth0 } from '../auth/auth0';
+import { getAuth0AccessToken } from '../auth/auth0';
 import { getEnv } from '../utils/env';
 
 const API_BASE =
@@ -128,23 +128,8 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   const logout = async () => {
-    if (isAuth0Mode) {
-      try {
-        logoutWithAuth0({
-          logoutParams: {
-            returnTo: window.location.origin,
-          },
-        });
-        return;
-      } catch (err) {
-        console.error('Auth0 logout failed:', err);
-        clearSession();
-        window.location.assign('/login');
-        return;
-      }
-    }
-
     clearSession();
+    window.location.assign('/login');
   };
 
   return {

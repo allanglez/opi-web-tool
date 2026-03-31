@@ -2,7 +2,9 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Param,
+  ParseIntPipe,
   BadRequestException,
   Res,
   Req,
@@ -56,6 +58,21 @@ export class AudioController {
   ) {
     return this.audioService.getAudioRecordings(
       parseInt(assessmentId, 10),
+      user.id,
+      user.roles,
+    );
+  }
+
+  @Delete(':recordingId')
+  @ApiOperation({ summary: 'Delete an audio recording (only if assessment is not completed)' })
+  async deleteAudio(
+    @Param('assessmentId') assessmentId: string,
+    @Param('recordingId', ParseIntPipe) recordingId: number,
+    @CurrentUser() user: { id: number; roles?: string[] },
+  ) {
+    return this.audioService.deleteAudioRecording(
+      parseInt(assessmentId, 10),
+      recordingId,
       user.id,
       user.roles,
     );

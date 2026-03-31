@@ -156,15 +156,21 @@
           <!-- In-App Recording -->
           <div class="mb-6">
             <h3 class="text-sm font-bold text-neutral-700 uppercase tracking-wider mb-3">In-App Recording</h3>
-            <div class="border border-neutral-200 rounded-lg p-6 text-center bg-neutral-50">
+            <div
+              class="border border-neutral-200 rounded-lg p-6 text-center bg-neutral-50"
+              :class="{ 'opacity-60': isAudioLocked }"
+              :title="isAudioLocked ? 'Recording is locked because the assessment is completed' : undefined"
+            >
               <div class="mb-3">
                 <Mic class="w-12 h-12 mx-auto text-neutral-400" />
               </div>
               <p class="font-bold text-neutral-900 uppercase tracking-wider text-sm mb-1">Start Recording Assessment</p>
-              <p class="text-xs text-neutral-500 mb-4">Click the record button to begin the OPI assessment recording</p>
+              <p v-if="isAudioLocked" class="text-xs text-amber-600 font-medium mb-4">Recording locked — assessment is completed</p>
+              <p v-else class="text-xs text-neutral-500 mb-4">Click the record button to begin the OPI assessment recording</p>
               <AudioRecorder
+                ref="audioRecorderRef"
                 :is-loading="isSaving"
-                :disabled="isFormReadOnly"
+                :disabled="isAudioLocked"
                 @audio-recorded="handleAudioRecorded"
               />
             </div>
@@ -173,19 +179,27 @@
           <!-- Upload External File -->
           <div class="mb-4">
             <h3 class="text-sm font-bold text-neutral-700 uppercase tracking-wider mb-3">Or Upload External File</h3>
-            <div class="border border-neutral-200 rounded-lg p-6 text-center bg-neutral-50">
+            <div
+              class="border border-neutral-200 rounded-lg p-6 text-center bg-neutral-50"
+              :class="{ 'opacity-60': isAudioLocked }"
+              :title="isAudioLocked ? 'Upload is locked because the assessment is completed' : undefined"
+            >
               <div class="mb-3">
                 <Upload class="w-12 h-12 mx-auto text-neutral-400" />
               </div>
               <p class="font-bold text-neutral-900 uppercase tracking-wider text-sm mb-1">Upload External Audio File</p>
-              <p class="text-xs text-neutral-500 mb-4">Recommended format: MP3, Maximum size: 50MB</p>
-              <label class="inline-block text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2 hover:bg-neutral-100 cursor-pointer">
+              <p v-if="isAudioLocked" class="text-xs text-amber-600 font-medium mb-4">Upload locked — assessment is completed</p>
+              <p v-else class="text-xs text-neutral-500 mb-4">Recommended format: MP3, Maximum size: 50MB</p>
+              <label
+                class="inline-block text-xs font-semibold uppercase tracking-wider border border-neutral-300 rounded px-4 py-2"
+                :class="isAudioLocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-neutral-100 cursor-pointer'"
+              >
                 Select File
                 <input
                   type="file"
                   accept="audio/mpeg,.mp3"
                   class="hidden"
-                  :disabled="isFormReadOnly"
+                  :disabled="isAudioLocked"
                   @change="handleFileUpload"
                 />
               </label>
@@ -225,6 +239,15 @@
                       @click="downloadRecording(recording)"
                     >
                       Download
+                    </button>
+                    <button
+                      v-if="assessment && assessment.status !== 'COMPLETED'"
+                      type="button"
+                      class="text-xs font-semibold text-red-700 bg-red-100 hover:bg-red-200 rounded px-3 py-1"
+                      :disabled="recordingLoading[recording.id]"
+                      @click="deleteRecording(recording)"
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -459,6 +482,7 @@ interface AudioRecording {
   };
 }
 
+const audioRecorderRef = ref<InstanceType<typeof AudioRecorder> | null>(null);
 const audioRecordings = ref<AudioRecording[]>([]);
 const recordingBlobUrls = ref<Record<number, string>>({});
 const recordingLoading = ref<Record<number, boolean>>({});
@@ -567,6 +591,10 @@ const backLabel = computed(() => {
 const canUseBrowserBack = computed(() => window.history.length > 1);
 const isFinalizedAssessment = computed(() => {
   return assessment.value?.status === 'COMPLETED' || assessment.value?.status === 'ABSENT';
+});
+const isAudioLocked = computed(() => {
+  if (!assessment.value) return true;
+  return assessment.value.status === 'COMPLETED' || assessment.value.status === 'ABSENT';
 });
 const isFormReadOnly = computed(() => {
   if (!assessment.value) {
@@ -928,6 +956,32 @@ async function downloadRecording(recording: AudioRecording) {
   }
 }
 
+async function deleteRecording(recording: AudioRecording) {
+  if (!assessment.value || assessment.value.status === 'COMPLETED') return;
+
+  if (!confirm(`Delete recording "${recording.fileName}"?`)) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio/${recording.id}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      audioUploadError.value = errorData.message || 'Failed to delete recording';
+      return;
+    }
+
+    audioUploadError.value = null;
+    audioRecorderRef.value?.resetRecording();
+    await fetchAudioRecordings();
+  } catch (err) {
+    audioUploadError.value = err instanceof Error ? err.message : 'Failed to delete recording';
+  }
+}
+
 function clearRecordingBlobUrls() {
   Object.values(recordingBlobUrls.value).forEach((url) => URL.revokeObjectURL(url));
   recordingBlobUrls.value = {};
@@ -937,7 +991,7 @@ function clearRecordingBlobUrls() {
 // Handle file upload from file picker
 async function handleFileUpload(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (!input.files || input.files.length === 0 || !assessment.value || isFormReadOnly.value) return;
+  if (!input.files || input.files.length === 0 || !assessment.value || isAudioLocked.value) return;
 
   const file = input.files[0];
   if (!['audio/mpeg', 'audio/mp3'].includes(file.type)) {
@@ -966,7 +1020,8 @@ async function handleFileUpload(event: Event) {
       
     // Use original extension or fallback to mp3
     const extension = file.name.split('.').pop() || 'mp3';
-    const friendlyName = `assessment-${assessment.value.id}-${dateStr}_${timeStr}.${extension}`;
+    const studentNum = assessment.value.student.studentNumber;
+    const friendlyName = `assessment-${assessment.value.id}-${studentNum}-${dateStr}_${timeStr}.${extension}`;
 
     formData.append('file', file, friendlyName);
 
@@ -995,8 +1050,8 @@ async function handleFileUpload(event: Event) {
 
 // Handle audio recording
 async function handleAudioRecorded(blob: Blob) {
-  if (!assessment.value || isFormReadOnly.value) return;
-  
+  if (!assessment.value || isAudioLocked.value) return;
+
   try {
     const formData = new FormData();
     const extension = blob.type.includes('webm')
@@ -1016,8 +1071,9 @@ async function handleAudioRecorded(blob: Blob) {
       String(now.getMinutes()).padStart(2, '0') + 
       String(now.getSeconds()).padStart(2, '0');
       
-    const friendlyName = `assessment-${assessment.value.id}-${dateStr}_${timeStr}.${extension}`;
-    
+    const studentNum = assessment.value.student.studentNumber;
+    const friendlyName = `assessment-${assessment.value.id}-${studentNum}-${dateStr}_${timeStr}.${extension}`;
+
     formData.append('file', blob, friendlyName);
     
     const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio`, {

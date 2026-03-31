@@ -504,6 +504,9 @@ export class EvaluatorService {
                     score: assessment?.score?.opiLevel?.id ?? null,
                     assessmentId: assessment?.id || null,
                     lastModifiedAt: assessment?.lastModifiedAt || null,
+                    lastModifiedBy: assessment?.evaluator
+                        ? `${assessment.evaluator.firstName} ${assessment.evaluator.lastName}`.trim()
+                        : null,
                 };
             });
 
@@ -682,6 +685,9 @@ export class EvaluatorService {
                     score: assessment?.score?.opiLevel?.id ?? null,
                     assessmentId: assessment?.id || null,
                     lastModifiedAt: assessment?.lastModifiedAt || null,
+                    lastModifiedBy: assessment?.evaluator
+                        ? `${assessment.evaluator.firstName} ${assessment.evaluator.lastName}`.trim()
+                        : null,
                 };
             });
 

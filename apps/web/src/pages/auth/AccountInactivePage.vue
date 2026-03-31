@@ -13,7 +13,7 @@
               Please contact your administrator to activate your account.
             </template>
             <template v-else>
-              Your account has been <span class="font-semibold text-red-600">deactivated</span>.
+              Your account is <span class="font-semibold text-red-600">not active</span>.
               Please contact your administrator if you believe this is an error.
             </template>
           </p>
@@ -33,20 +33,17 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import AppHeader from '../../components/layout/AppHeader.vue';
 import AppFooter from '../../components/layout/AppFooter.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import { ShieldAlert } from 'lucide-vue-next';
 
-const router = useRouter();
 const authStore = useAuthStore();
 
 const isPending = computed(() => authStore.isPending);
 
-const backToLogin = async () => {
-  await authStore.logout();
-  router.replace({ name: 'login' });
+const backToLogin = () => {
+  window.location.assign('/login');
 };
 </script>

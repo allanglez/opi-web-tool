@@ -169,6 +169,15 @@ export class AudioService {
   ) {
     await this.assertAssessmentAccess(assessmentId, userId, userRoles);
 
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      select: { status: true },
+    });
+
+    if (assessment?.status === 'COMPLETED') {
+      throw new ForbiddenException('Cannot upload audio to a completed assessment');
+    }
+
     // Validate file type - accepted formats are transcoded to MP3 when needed
     if (!this.allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException('Invalid file type. Supported formats: MP3, WebM, OGG, WAV, MP4/M4A, AAC.');
@@ -272,6 +281,42 @@ export class AudioService {
       mimeType: objectStream.mimeType || recording.mimeType,
       fileName: recording.fileName,
     };
+  }
+
+  async deleteAudioRecording(
+    assessmentId: number,
+    recordingId: number,
+    userId: number,
+    userRoles: string[] = [],
+  ) {
+    await this.assertAssessmentAccess(assessmentId, userId, userRoles);
+
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      select: { status: true },
+    });
+
+    if (assessment?.status === 'COMPLETED') {
+      throw new ForbiddenException('Cannot delete audio from a completed assessment');
+    }
+
+    const recording = await this.prisma.audioRecording.findFirst({
+      where: { id: recordingId, assessmentId },
+    });
+
+    if (!recording) {
+      throw new NotFoundException('Audio recording not found');
+    }
+
+    // Delete from storage
+    await this.storageAdapter.deleteObject(recording.storageKey);
+
+    // Delete database record
+    await this.prisma.audioRecording.delete({
+      where: { id: recordingId },
+    });
+
+    return { success: true, deletedId: recordingId };
   }
 
   async hasAudioRecording(assessmentId: number): Promise<boolean> {

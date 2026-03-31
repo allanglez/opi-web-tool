@@ -278,6 +278,7 @@ const statusOptions = [
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'IN_PROGRESS', label: 'In Progress' },
   { value: 'NOT_STARTED', label: 'Not Started' },
+  { value: 'ABSENT', label: 'Absent' },
 ];
 
 const programOptions = computed(() => [

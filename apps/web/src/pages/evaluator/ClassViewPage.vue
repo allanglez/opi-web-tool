@@ -328,6 +328,7 @@ interface ClassStudent {
   score: number | null;
   assessmentId: number | null;
   lastModifiedAt: string | null;
+  lastModifiedBy: string | null;
 }
 
 interface ClassDetail {
@@ -385,6 +386,13 @@ const classStudentColumns: DataTableColumn<ClassStudent>[] = [
     sortable: true,
     searchable: false,
     value: (row) => row.lastModifiedAt || '',
+  },
+  {
+    key: 'lastModifiedBy',
+    header: 'Modified By',
+    sortable: true,
+    searchable: true,
+    value: (row) => row.lastModifiedBy || '',
   },
   {
     key: 'action',

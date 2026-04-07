@@ -86,6 +86,16 @@ export class AssessmentsController {
         return this.assessmentsService.markAbsent(id, user.id, user.roles);
     }
 
+    @Post(':id/reset-absent')
+    @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
+    @ApiOperation({ summary: 'Reset an absent assessment back to in-progress and reassign to the current user' })
+    async resetAbsent(
+        @Param('id', ParseIntPipe) id: number,
+        @CurrentUser() user: AuthUser,
+    ) {
+        return this.assessmentsService.resetAbsent(id, user.id);
+    }
+
     @Get('opi-levels')
     @Roles('EVALUATOR', 'COORDINATOR', 'ADMIN')
     @ApiOperation({ summary: 'Get all available OPI proficiency levels for scoring' })

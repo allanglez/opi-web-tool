@@ -795,6 +795,64 @@ export class AssessmentsService {
     }
 
     /**
+     * Reset an absent assessment back to in-progress and reassign to the requesting user.
+     */
+    async resetAbsent(id: number, userId: number) {
+        const assessment = await this.prisma.assessment.findUnique({
+            where: { id },
+        });
+
+        if (!assessment) {
+            throw new NotFoundException('Assessment not found');
+        }
+
+        if (assessment.status !== 'ABSENT') {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Only absent assessments can be reset',
+                error: 'NOT_ABSENT',
+            });
+        }
+
+        const updated = await this.prisma.assessment.update({
+            where: { id },
+            data: {
+                status: 'IN_PROGRESS',
+                evaluatorId: userId,
+                completedAt: null,
+                lastModifiedAt: new Date(),
+            },
+            include: {
+                student: true,
+                evaluator: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+                score: {
+                    include: {
+                        opiLevel: true,
+                    },
+                },
+            },
+        });
+
+        // Audit log
+        await this.auditService.logAssessmentAction(
+            id,
+            'ASSESSMENT_RESET_ABSENT',
+            userId,
+            'status',
+            'ABSENT',
+            'IN_PROGRESS',
+        );
+
+        return updated;
+    }
+
+    /**
      * Get OPI levels for dropdown.
      */
     async getOpiLevels() {

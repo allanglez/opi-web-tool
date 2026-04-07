@@ -43,7 +43,7 @@
       </div>
 
       <!-- TOP BACK LINK -->
-      <div class="mt-4 mb-2">
+      <div class="mt-4 mb-2 flex justify-between items-center">
         <button
           type="button"
           class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-800 transition-colors"
@@ -51,6 +51,15 @@
         >
           <ArrowLeft class="w-3.5 h-3.5" />
           {{ backLabel }}
+        </button>
+        <button
+          v-if="assessment?.status === 'ABSENT'"
+          type="button"
+          :disabled="isResettingAbsent"
+          class="text-xs font-semibold uppercase tracking-wider border border-blue-300 text-blue-700 bg-blue-50 rounded px-4 py-2 hover:bg-blue-100 disabled:opacity-50"
+          @click="resetAbsent"
+        >
+          {{ isResettingAbsent ? 'Resetting...' : 'Reset Assessment' }}
         </button>
       </div>
 
@@ -432,6 +441,39 @@
         </div>
       </div>
     </template>
+
+    <!-- Reset Absent Confirmation Dialog -->
+    <div
+      v-if="showResetConfirm"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      @click.self="showResetConfirm = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <AlertTriangle class="w-5 h-5 text-blue-600" />
+          </div>
+          <h3 class="text-lg font-semibold text-neutral-900">Reset Assessment</h3>
+        </div>
+        <p class="text-sm text-neutral-600 mb-6">
+          Are you sure you want to reset this assessment? It will be set back to <strong>In Progress</strong> and assigned to you.
+        </p>
+        <div class="flex justify-end gap-3">
+          <button
+            class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded-md hover:bg-neutral-200"
+            @click="showResetConfirm = false"
+          >
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+            @click="confirmResetAbsent"
+          >
+            Reset Assessment
+          </button>
+        </div>
+      </div>
+    </div>
   </AppShell>
 </template>
 
@@ -468,6 +510,8 @@ const error = ref<string | null>(null);
 const isSaving = ref(false);
 const isCompleting = ref(false);
 const isMarkingAbsent = ref(false);
+const isResettingAbsent = ref(false);
+const showResetConfirm = ref(false);
 const audioUploadError = ref<string | null>(null);
 const historyRefreshKey = ref(0);
 
@@ -1247,6 +1291,28 @@ async function markAbsent() {
     toast.error(e instanceof Error ? e.message : 'Failed to mark absent');
   } finally {
     isMarkingAbsent.value = false;
+  }
+}
+
+function resetAbsent() {
+  if (!assessment.value || assessment.value.status !== 'ABSENT') return;
+  showResetConfirm.value = true;
+}
+
+async function confirmResetAbsent() {
+  if (!assessment.value) return;
+
+  showResetConfirm.value = false;
+  isResettingAbsent.value = true;
+  try {
+    assessment.value = await api.post<Assessment>(`/assessments/${assessment.value.id}/reset-absent`);
+    historyRefreshKey.value += 1;
+    syncFormWithAssessment();
+    toast.success('Assessment has been reset and assigned to you.');
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Failed to reset assessment');
+  } finally {
+    isResettingAbsent.value = false;
   }
 }
 

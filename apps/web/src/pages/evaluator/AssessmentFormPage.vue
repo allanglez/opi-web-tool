@@ -474,6 +474,72 @@
         </div>
       </div>
     </div>
+
+    <!-- Mark Absent Confirmation Dialog -->
+    <div
+      v-if="showAbsentConfirm"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      @click.self="showAbsentConfirm = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+            <AlertTriangle class="w-5 h-5 text-yellow-600" />
+          </div>
+          <h3 class="text-lg font-semibold text-neutral-900">Mark Student Absent</h3>
+        </div>
+        <p class="text-sm text-neutral-600 mb-6">
+          Are you sure you want to mark this student as absent?
+        </p>
+        <div class="flex justify-end gap-3">
+          <button
+            class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded-md hover:bg-neutral-200"
+            @click="showAbsentConfirm = false"
+          >
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700"
+            @click="confirmMarkAbsent"
+          >
+            Mark Absent
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Recording Confirmation Dialog -->
+    <div
+      v-if="showDeleteRecordingConfirm"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      @click.self="showDeleteRecordingConfirm = false; pendingDeleteRecording = null"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+            <AlertTriangle class="w-5 h-5 text-yellow-600" />
+          </div>
+          <h3 class="text-lg font-semibold text-neutral-900">Delete Recording</h3>
+        </div>
+        <p class="text-sm text-neutral-600 mb-6">
+          Are you sure you want to delete "<strong>{{ pendingDeleteRecording?.fileName }}</strong>"?
+        </p>
+        <div class="flex justify-end gap-3">
+          <button
+            class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded-md hover:bg-neutral-200"
+            @click="showDeleteRecordingConfirm = false; pendingDeleteRecording = null"
+          >
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700"
+            @click="confirmDeleteRecording"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
   </AppShell>
 </template>
 
@@ -512,6 +578,9 @@ const isCompleting = ref(false);
 const isMarkingAbsent = ref(false);
 const isResettingAbsent = ref(false);
 const showResetConfirm = ref(false);
+const showAbsentConfirm = ref(false);
+const showDeleteRecordingConfirm = ref(false);
+const pendingDeleteRecording = ref<AudioRecording | null>(null);
 const audioUploadError = ref<string | null>(null);
 const historyRefreshKey = ref(0);
 
@@ -1000,10 +1069,18 @@ async function downloadRecording(recording: AudioRecording) {
   }
 }
 
-async function deleteRecording(recording: AudioRecording) {
+function deleteRecording(recording: AudioRecording) {
   if (!assessment.value || assessment.value.status === 'COMPLETED') return;
+  pendingDeleteRecording.value = recording;
+  showDeleteRecordingConfirm.value = true;
+}
 
-  if (!confirm(`Delete recording "${recording.fileName}"?`)) return;
+async function confirmDeleteRecording() {
+  const recording = pendingDeleteRecording.value;
+  if (!assessment.value || !recording) return;
+
+  showDeleteRecordingConfirm.value = false;
+  pendingDeleteRecording.value = null;
 
   try {
     const response = await fetch(`${API_BASE}/assessments/${assessment.value.id}/audio/${recording.id}`, {
@@ -1246,13 +1323,15 @@ async function saveDraft() {
   }
 }
 
-async function markAbsent() {
+function markAbsent() {
   if (!assessment.value || isFormReadOnly.value) return;
+  showAbsentConfirm.value = true;
+}
 
-  if (!confirm('Are you sure you want to mark this student as absent? This action cannot be undone.')) {
-    return;
-  }
+async function confirmMarkAbsent() {
+  if (!assessment.value) return;
 
+  showAbsentConfirm.value = false;
   isMarkingAbsent.value = true;
   try {
     try {
